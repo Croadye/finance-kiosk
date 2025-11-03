@@ -1,5 +1,5 @@
 from __future__ import annotations
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..models import Setting, Account, Transaction
-from ..utils import DEFAULT_ACCOUNT_TYPES
+from ..utils import DEFAULT_ACCOUNT_TYPES, get_account_types
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -47,16 +47,28 @@ async def networth_get(request: Request, session: AsyncSession = Depends(get_ses
     })
 
 
+def _parse_decimal(value: str | None) -> Decimal:
+    if not value:
+        return Decimal(0)
+    try:
+        return Decimal(value)
+    except (InvalidOperation, TypeError):
+        return Decimal(0)
+
 @router.post("/settings/networth")
 async def networth_post(
-    home_value: float = Form(0.0),
-    vehicles_value: float = Form(0.0),
-    bank_total_now: float = Form(0.0),
-    cc_debt_now: float = Form(0.0),
+    home_value: str = Form(""),
+    vehicles_value: str = Form(""),
+    bank_total_now: str = Form(""),
+    cc_debt_now: str = Form(""),
     session: AsyncSession = Depends(get_session),
 ):
-    baseline = Decimal(home_value) + Decimal(vehicles_value) + \
-        Decimal(bank_total_now) - Decimal(cc_debt_now)
+    baseline = (
+        _parse_decimal(home_value)
+        + _parse_decimal(vehicles_value)
+        + _parse_decimal(bank_total_now)
+        - _parse_decimal(cc_debt_now)
+    )
     raw_net = await current_networth(session)
     offset = baseline - raw_net  # so displayed = raw_net + offset == baseline
     row = await session.get(Setting, "networth_offset")
@@ -71,9 +83,9 @@ async def networth_post(
 
 @router.get("/settings/account-types", response_class=HTMLResponse)
 async def account_types_get(request: Request, session: AsyncSession = Depends(get_session)):
-    row = await session.get(Setting, "account_types")
-    types = row.v_json if (row and row.v_json) else DEFAULT_ACCOUNT_TYPES
+    types = await get_account_types(session)
     return templates.TemplateResponse("settings_account_types.html", {"request": request, "types": types})
+
 
 
 @router.post("/settings/account-types/add")

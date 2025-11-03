@@ -38,24 +38,38 @@ async def list_txs(
                        | (Transaction.memo.ilike(ilike)))
 
     # Fetch IDs for the current page
-    id_rows = (await session.execute(
-        select(Transaction.id)
-        .where(*filters) if filters else select(Transaction.id)
-    )).scalars().all()
+    count_stmt = select(func.count()).select_from(Transaction)
+    if filters:
+        count_stmt = count_stmt.where(*filters)
 
-    # Apply order + pagination on a subquery of IDs (works on PG)
-    page_ids = (await session.execute(
-        select(Transaction.id)
-        .where(Transaction.id.in_(id_rows))
-        .order_by(Transaction.ts.desc())
-        .offset(offset)
-        .limit(per)
-    )).scalars().all()
+    total = int((await session.scalar(count_stmt)) or 0)
+
+    if total == 0:
+        return templates.TemplateResponse("transactions_list.html", {
+            "request": request,
+            "rows": [],
+            "q": q or "",
+            "page": page,
+            "per": per,
+            "total": total,
+        })
+
+    # Apply filters, ordering, and pagination directly when fetching IDs
+    id_stmt = select(Transaction.id).order_by(
+        Transaction.ts.desc()).offset(offset).limit(per)
+    if filters:
+        id_stmt = id_stmt.where(*filters)
+
+    page_ids = (await session.execute(id_stmt)).scalars().all()
 
     if not page_ids:
-        total = (await session.scalar(select(func.count()).select_from(Transaction))) or 0
         return templates.TemplateResponse("transactions_list.html", {
-            "request": request, "rows": [], "q": q or "", "page": page, "per": per, "total": int(total)
+            "request": request,
+            "rows": [],
+            "q": q or "",
+            "page": page,
+            "per": per,
+            "total": total,
         })
 
     # Load display rows + a sample category (min over names)
@@ -74,16 +88,11 @@ async def list_txs(
         .order_by(Transaction.ts.desc())
     )).all()
 
-    total = (await session.scalar(
-        (select(func.count()).select_from(Transaction).where(*filters)) if filters
-        else select(func.count()).select_from(Transaction)
-    )) or 0
-
     return templates.TemplateResponse("transactions_list.html", {
         "request": request,
         "rows": rows,
         "q": q or "",
-        "page": page, "per": per, "total": int(total)
+        "page": page, "per": per, "total": total
     })
 
 # ---------- NEW (unchanged, kept for reference) ----------
