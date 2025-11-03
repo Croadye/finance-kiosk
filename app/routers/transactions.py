@@ -1,4 +1,6 @@
 from __future__ import annotations
+from datetime import date
+from typing import List
 from sqlalchemy import select
 from fastapi import Request
 from uuid import UUID
@@ -95,53 +97,95 @@ async def list_txs(
         "page": page, "per": per, "total": total
     })
 
-# ---------- NEW (unchanged, kept for reference) ----------
-
 
 @router.get("/transactions/new", response_class=HTMLResponse)
-async def new_tx(request: Request, session: AsyncSession = Depends(get_session)):
-    accounts = (await session.execute(select(Account.id, Account.name))).all()
-    categories = (await session.execute(select(Category.id, Category.name).where(Category.is_hidden == False))).all()
-    return templates.TemplateResponse("transactions_new.html", {
-        "request": request,
-        "accounts": accounts,
-        "categories": categories,
-    })
+async def transactions_new(request: Request, session: AsyncSession = Depends(get_session)):
+    accounts_rows = (await session.execute(
+        select(Account.id, Account.name).order_by(Account.name)
+    )).all()
+    categories_rows = (await session.execute(
+        select(Category.id, Category.name).order_by(Category.name)
+    )).all()
+
+    # Flatten rows for Jinja loops (server-side)
+    accounts = [(r[0], r[1]) for r in accounts_rows]
+    categories = [(r[0], r[1]) for r in categories_rows]
+
+    # JSON-friendly version for the JS block (client-side)
+    categories_js = [[str(r[0]), r[1]] for r in categories_rows]
+
+    today = date.today().isoformat()
+    return templates.TemplateResponse(
+        "transactions_new.html",
+        {
+            "request": request,
+            "accounts": accounts,
+            "categories": categories,
+            "categories_js": categories_js,   # <— add this
+            "today": today,
+        },
+    )
 
 
 @router.post("/transactions")
-async def create_tx(
+async def transactions_create(
+    tx_date: str = Form(...),
     account_id: str = Form(...),
-    category_id: str | None = Form(None),
-    payee: str | None = Form(None),
-    memo: str | None = Form(None),
-    amount: float = Form(...),
-    kind: str = Form("expense"),
+    kind: str = Form("expense"),           # "expense" or "income"
+    payee: str = Form(""),
+    memo: str = Form(""),
+    # Optional single-amount fallback if no splits were provided in the form
+    amount: float = Form(0.0),
+    # Split arrays (may be empty). Names end with [] in the form.
+    split_category_id: List[str] = Form([]),
+    split_memo: List[str] = Form([]),
+    split_amount: List[float] = Form([]),
     session: AsyncSession = Depends(get_session),
 ):
-    signed = -abs(amount) if kind == "expense" else abs(amount)
+    # Normalize: keep only rows with a category and a non-zero amount
+    splits_clean = []
+    for i in range(len(split_amount)):
+        amt = float(split_amount[i] or 0)
+        cat = (split_category_id[i] or "").strip(
+        ) if i < len(split_category_id) else ""
+        smemo = split_memo[i] if i < len(split_memo) else ""
+        if cat and abs(amt) > 0:
+            splits_clean.append((cat, smemo, abs(amt)))
+
+    # Compute signed total; splits take precedence if present
+    if splits_clean:
+        base = sum(a for _, _, a in splits_clean)
+    else:
+        base = abs(amount)
+
+    signed_total = -abs(base) if kind == "expense" else abs(base)
 
     tx = Transaction(
         account_id=UUID(account_id),
-        payee=payee or None,
-        memo=memo or None,
-        amount=signed,
-        cleared=True,
+        date=date.fromisoformat(tx_date),
+        amount=signed_total,
+        payee=payee.strip()[:80] if payee else None,
+        memo=memo.strip()[:200] if memo else None,
     )
     session.add(tx)
-    await session.flush()
+    await session.flush()  # get tx.id
 
-    if category_id:
-        session.add(TxSplit(
-            transaction_id=tx.id,
-            category_id=UUID(category_id),
-            amount=signed
-        ))
+    if splits_clean:
+        # Store split amounts with the same sign as the transaction
+        for cat, smemo, a in splits_clean:
+            session.add(TxSplit(
+                transaction_id=tx.id,
+                category_id=UUID(cat),
+                amount=(-abs(a) if kind == "expense" else abs(a)),
+                memo=(smemo or "")[:200] or None
+            ))
+    else:
+        # No splits given → create a single split using optional category from the form (if you add one),
+        # or leave splits empty and let category be “uncategorized” in reports. Here we leave it empty.
+        pass
 
     await session.commit()
     return RedirectResponse(url="/transactions", status_code=303)
-
-# --- EDIT (multi-split) ---
 
 
 @router.get("/transactions/{tx_id}/edit", response_class=HTMLResponse)

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<form method="post" action="/transfers" class="max-w-xl bg-slate-900 rounded-2xl p-4 shadow space-y-4">
+  <h2 class="text-lg font-semibold">New Transfer</h2>
+
+  {% if request.query_params.get('err') %}
+    <div class="text-sm text-rose-400">
+      {% if request.query_params.get('err') == 'same_accounts' %}From/To cannot be the same.{% endif %}
+      {% if request.query_params.get('err') == 'bad_amount' %}Enter a valid amount.{% endif %}
+      {% if request.query_params.get('err') == 'nonpositive' %}Amount must be greater than 0.{% endif %}
+    </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Date</label>
+      <input type="date" name="tx_date" value="{{ today }}" required class="w-full bg-slate-800 rounded-xl px-3 py-2">
+    </div>
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Amount</label>
+      <input name="amount" inputmode="decimal" placeholder="0.00" class="w-full bg-slate-800 rounded-xl px-3 py-2 text-right">
+    </div>
+
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">From account</label>
+      <select name="from_account_id" class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+        {% for id, name in accounts %}
+          <option value="{{ id }}">{{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">To account</label>
+      <select name="to_account_id" class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+        {% for id, name in accounts %}
+          <option value="{{ id }}">{{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Memo (optional)</label>
+    <input name="memo" class="w-full bg-slate-800 rounded-xl px-3 py-2" placeholder="e.g., Pay CC bill / Move to savings">
+  </div>
+
+  <div class="pt-2 flex justify-end gap-2">
+    <a href="/transactions" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Cancel</a>
+    <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Save Transfer</button>
+  </div>
+
+  <p class="text-xs text-slate-400 mt-2">
+    Tip: Paying a credit card/loan? Use this transfer. (We’ll add an optional “interest split” wizard next.)
+  </p>
+</form>
+
+{% endblock %}

@@ -68,6 +68,8 @@ class Transaction(Base):
         Numeric(12, 2), nullable=False)  # +inflow, -outflow
     cleared: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True)
+    transfer_group_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+
 
     account = relationship("Account", back_populates="transactions")
     splits = relationship(
