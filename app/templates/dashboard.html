@@ -5,19 +5,23 @@
 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
   <div class="bg-slate-900 rounded-2xl p-4 shadow">
     <div class="text-slate-400 text-xs uppercase tracking-wide">Net Worth</div>
-    <div class="text-2xl font-semibold mt-1">${{ "{:,.2f}".format(m.net_worth or 0) }}</div>
-  </div>
-  <div class="bg-slate-900 rounded-2xl p-4 shadow">
-    <div class="text-slate-400 text-xs uppercase tracking-wide">Current Debts</div>
-    <div class="text-2xl font-semibold mt-1">${{ "{:,.2f}".format(m.current_debts or 0) }}</div>
+    <div class="text-2xl font-semibold mt-1">${{ net_worth | currency }}</div>
   </div>
   <div class="bg-slate-900 rounded-2xl p-4 shadow">
     <div class="text-slate-400 text-xs uppercase tracking-wide">Cash Available</div>
-    <div class="text-2xl font-semibold mt-1">${{ "{:,.2f}".format(m.cash_available or 0) }}</div>
+    <div class="text-2xl font-semibold mt-1">${{  current_cash | currency }}</div>
+  </div>
+  <div class="bg-slate-900 rounded-2xl p-4 shadow">
+    <div class="text-slate-400 text-xs uppercase tracking-wide">Current Debts</div>
+    <div class="text-2xl font-semibold mt-1">${{ current_debts | currency }}</div>
+  </div>
+    <div class="bg-slate-900 rounded-2xl p-4 shadow">
+    <div class="text-slate-400 text-xs uppercase tracking-wide">Assets Total</div>
+    <div class="text-2xl font-semibold mt-1">${{  assets_total | currency }}</div>
   </div>
   <div class="bg-slate-900 rounded-2xl p-4 shadow">
     <div class="text-slate-400 text-xs uppercase tracking-wide">Spent This Month</div>
-    <div class="text-2xl font-semibold mt-1">${{ "{:,.2f}".format(m.spent_this_month or 0) }}</div>
+    <div class="text-2xl font-semibold mt-1">${{  spent_this_month | currency }}</div>
   </div>
 </div>
 

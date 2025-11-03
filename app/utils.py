@@ -45,20 +45,3 @@ async def calculate_current_networth(session: AsyncSession) -> Decimal:
                 for a in opening.keys())
     return total
 
-
-async def get_networth_offset(session: AsyncSession) -> Decimal:
-    row = await session.get(Setting, "networth_offset")
-    if not row or row.v_json is None:
-        return Decimal(0)
-    value = row.v_json
-    if isinstance(value, (int, float)):
-        return Decimal(value)
-    if isinstance(value, dict):
-        try:
-            return Decimal(value.get("offset", 0))
-        except Exception:
-            return Decimal(0)
-    try:
-        return Decimal(value)
-    except Exception:
-        return Decimal(0)
