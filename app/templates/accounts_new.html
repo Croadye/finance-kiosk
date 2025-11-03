@@ -1,21 +1,49 @@
-{% extends "base.html" %}
-{% block content %}
-<form method="post" action="/accounts" class="max-w-md bg-slate-900 rounded-2xl p-4 shadow space-y-3">
+{% extends "base.html" %} {% block content %}
+<form
+  method="post"
+  action="/accounts"
+  class="max-w-md bg-slate-900 rounded-2xl p-4 shadow space-y-3"
+>
   <h2 class="text-lg font-semibold">New Account</h2>
   <div>
     <label class="block text-sm text-slate-300 mb-1">Name</label>
-    <input name="name" class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+    <input
+      name="name"
+      class="w-full bg-slate-800 rounded-xl px-3 py-2"
+      required
+    />
   </div>
   <div>
     <label class="block text-sm text-slate-300 mb-1">Type</label>
-    <input name="type" class="w-full bg-slate-800 rounded-xl px-3 py-2" placeholder="checking, savings, cash, credit, mortgage, auto_loan, ..." required>
+    <select
+      name="type"
+      class="w-full bg-slate-800 rounded-xl px-3 py-2"
+      required
+    >
+      {% for t in types %}
+      <option value="{{ t.name }}">{{ t.name }}</option>
+      {% endfor %}
+    </select>
+    <div class="text-xs text-slate-400 mt-1">
+      <a href="/settings/account-types">Manage types</a>
+    </div>
   </div>
+
   <div>
     <label class="block text-sm text-slate-300 mb-1">Opening Balance</label>
-    <input name="opening_balance" inputmode="decimal" class="w-full bg-slate-800 rounded-xl px-3 py-2" value="0.00">
+    <input
+      name="opening_balance"
+      inputmode="decimal"
+      class="w-full bg-slate-800 rounded-xl px-3 py-2"
+      value="0.00"
+    />
   </div>
   <div class="pt-2 flex justify-end">
-    <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Save</button>
+    <button
+      class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white"
+    >
+      Save
+    </button>
   </div>
 </form>
 {% endblock %}

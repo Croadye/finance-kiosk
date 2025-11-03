@@ -5,12 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..models import Account, Transaction, Setting
 from fastapi.templating import Jinja2Templates
-
+from ..utils import DEFAULT_ACCOUNT_TYPES, get_account_types
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-
-DEBT_TYPES = {"credit", "loan", "mortgage", "auto_loan",
-              "home_loan", "vehicle_loan", "personal_loan"}
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -47,10 +44,13 @@ async def dashboard(request: Request, session: AsyncSession = Depends(get_sessio
     ))
 
     # sum of what you owe (positive figure)
+    types_list = await get_account_types(session)
+    debt_names = {t["name"].lower() for t in types_list if t.get("is_debt")}
+
     current_debts = float(sum(
         (-bal) if bal < 0 else 0.0
         for aid, bal in balances.items()
-        if types.get(aid) in DEBT_TYPES
+        if (types.get(aid) or "").lower() in debt_names
     ))
 
     # spent this month (expenses are negative amounts)

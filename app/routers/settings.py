@@ -7,6 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..models import Setting, Account, Transaction
+from ..utils import DEFAULT_ACCOUNT_TYPES
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -66,3 +67,50 @@ async def networth_post(
         session.add(row)
     await session.commit()
     return RedirectResponse(url="/", status_code=303)
+
+
+@router.get("/settings/account-types", response_class=HTMLResponse)
+async def account_types_get(request: Request, session: AsyncSession = Depends(get_session)):
+    row = await session.get(Setting, "account_types")
+    types = row.v_json if (row and row.v_json) else DEFAULT_ACCOUNT_TYPES
+    return templates.TemplateResponse("settings_account_types.html", {"request": request, "types": types})
+
+
+@router.post("/settings/account-types/add")
+async def account_types_add(
+    name: str = Form(...),
+    is_debt: str | None = Form(None),
+    session: AsyncSession = Depends(get_session),
+):
+    row = await session.get(Setting, "account_types")
+    types = (row.v_json if (row and row.v_json)
+             else DEFAULT_ACCOUNT_TYPES).copy()
+    if not any(t["name"].lower() == name.strip().lower() for t in types):
+        types.append({"name": name.strip(), "is_debt": bool(is_debt)})
+    if row:
+        row.v_json = types
+    else:
+        session.add(Setting(k="account_types", v_json=types))
+    await session.commit()
+    return RedirectResponse(url="/settings/account-types", status_code=303)
+
+
+@router.post("/settings/account-types/update")
+async def account_types_update(request: Request, session: AsyncSession = Depends(get_session)):
+    form = await request.form()
+    # Expect rows as name_i, is_debt_i, with hidden count field 'n'
+    n = int(form.get("n", "0"))
+    new_list = []
+    for i in range(n):
+        name = (form.get(f"name_{i}") or "").strip()
+        if not name:
+            continue
+        is_debt = form.get(f"is_debt_{i}") is not None
+        new_list.append({"name": name, "is_debt": is_debt})
+    row = await session.get(Setting, "account_types")
+    if row:
+        row.v_json = new_list
+    else:
+        session.add(Setting(k="account_types", v_json=new_list))
+    await session.commit()
+    return RedirectResponse(url="/settings/account-types", status_code=303)

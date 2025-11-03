@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..models import Account, Transaction
+from ..utils import get_account_types
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -34,8 +35,9 @@ async def accounts_list(request: Request, session: AsyncSession = Depends(get_se
 
 
 @router.get("/accounts/new", response_class=HTMLResponse)
-async def accounts_new(request: Request):
-    return templates.TemplateResponse("accounts_new.html", {"request": request})
+async def accounts_new(request: Request, session: AsyncSession = Depends(get_session)):
+    types = await get_account_types(session)
+    return templates.TemplateResponse("accounts_new.html", {"request": request, "types": types})
 
 
 @router.post("/accounts")
@@ -56,7 +58,8 @@ async def accounts_edit(acc_id: str, request: Request, session: AsyncSession = D
     a = await session.get(Account, UUID(acc_id))
     if not a:
         return RedirectResponse(url="/accounts", status_code=303)
-    return templates.TemplateResponse("accounts_edit.html", {"request": request, "acc": a})
+    types = await get_account_types(session)
+    return templates.TemplateResponse("accounts_edit.html", {"request": request, "acc": a, "types": types})
 
 
 @router.post("/accounts/{acc_id}/edit")

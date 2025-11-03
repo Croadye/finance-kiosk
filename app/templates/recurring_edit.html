@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<form method="post" action="/recurring/{{ b.id }}/edit" class="max-w-xl bg-slate-900 rounded-2xl p-4 shadow space-y-3">
+  <h2 class="text-lg font-semibold">Edit Recurring Item</h2>
+
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Name</label>
+    <input name="name" value="{{ b.name }}" class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+  </div>
+
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Kind</label>
+    <label class="inline-flex items-center gap-2 mr-4">
+      <input type="radio" name="kind" value="expense" {% if kind=='expense' %}checked{% endif %}> Expense
+    </label>
+    <label class="inline-flex items-center gap-2">
+      <input type="radio" name="kind" value="income" {% if kind=='income' %}checked{% endif %}> Income
+    </label>
+  </div>
+
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Amount</label>
+    <input name="amount" inputmode="decimal" value="{{ '%.2f'|format(abs_amount) }}"
+           class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+  </div>
+
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Cadence</label>
+    <select name="cadence" class="w-full bg-slate-800 rounded-xl px-3 py-2">
+      <option value="monthly" {% if b.cadence=='monthly' %}selected{% endif %}>Monthly</option>
+      <option value="biweekly" {% if b.cadence=='biweekly' %}selected{% endif %}>Biweekly</option>
+      <option value="weekly" {% if b.cadence=='weekly' %}selected{% endif %}>Weekly</option>
+    </select>
+  </div>
+
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Next due date</label>
+    <input type="date" name="next_due" value="{{ b.next_due }}" class="w-full bg-slate-800 rounded-xl px-3 py-2">
+  </div>
+
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Account</label>
+    <select name="account_id" class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+      {% for id, name in accounts %}
+      <option value="{{id}}" {% if id==b.account_id %}selected{% endif %}>{{name}}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Category</label>
+    <select name="category_id" class="w-full bg-slate-800 rounded-xl px-3 py-2">
+      <option value="">— none —</option>
+      {% for id, name in categories %}
+      <option value="{{id}}" {% if id==b.category_id %}selected{% endif %}>{{name}}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="flex items-center gap-2 mt-2">
+    <input id="autopost" type="checkbox" name="autopost" value="1" {% if b.autopost %}checked{% endif %} class="scale-125">
+    <label for="autopost" class="text-slate-300">Autopost (uncheck to ask each time)</label>
+  </div>
+
+  <div class="pt-3 flex justify-between">
+    <a href="/recurring" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Back</a>
+    <div class="space-x-2">
+      <button formaction="/recurring/{{ b.id }}/delete" formmethod="post"
+              onclick="return confirm('Delete this item?');"
+              class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white">Delete</button>
+      <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Save</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

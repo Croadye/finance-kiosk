@@ -150,8 +150,9 @@ async def edit_tx(
         select(Category.id, Category.name).where(Category.is_hidden == False)
     )).all()
     splits = (await session.execute(
-        select(TxSplit).where(TxSplit.transaction_id ==
-                              tx.id).order_by(TxSplit.created_at.asc())
+        select(TxSplit)
+        .where(TxSplit.transaction_id == tx.id)
+        .order_by(TxSplit.id.asc())   # was: TxSplit.created_at.asc()
     )).scalars().all()
 
     # infer kind from tx sign (default expense if zero)

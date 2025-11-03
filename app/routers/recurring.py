@@ -147,3 +147,57 @@ async def recurring_confirm(session: AsyncSession = Depends(get_session), reques
 
     await session.commit()
     return RedirectResponse(url="/recurring", status_code=303)
+
+
+@router.get("/recurring/{bill_id}/edit", response_class=HTMLResponse)
+async def recurring_edit(bill_id: str, request: Request, session: AsyncSession = Depends(get_session)):
+    b = await session.get(Bill, UUID(bill_id))
+    if not b:
+        return RedirectResponse(url="/recurring", status_code=303)
+
+    accounts = (await session.execute(select(Account.id, Account.name))).all()
+    categories = (await session.execute(select(Category.id, Category.name))).all()
+
+    # derive kind for the radio buttons
+    kind = "income" if (b.amount or 0) > 0 else "expense"
+    abs_amount = float(abs(b.amount or 0))
+
+    return templates.TemplateResponse("recurring_edit.html", {
+        "request": request,
+        "b": b,
+        "accounts": accounts,
+        "categories": categories,
+        "kind": kind,
+        "abs_amount": abs_amount,
+    })
+
+
+@router.post("/recurring/{bill_id}/edit")
+async def recurring_update(
+    bill_id: str,
+    name: str = Form(...),
+    amount: float = Form(...),
+    kind: str = Form("expense"),
+    cadence: str = Form("monthly"),
+    next_due: str = Form(None),
+    autopost: bool = Form(False),
+    account_id: str = Form(...),
+    category_id: str = Form(""),
+    session: AsyncSession = Depends(get_session),
+):
+    b = await session.get(Bill, UUID(bill_id))
+    if not b:
+        return RedirectResponse(url="/recurring", status_code=303)
+
+    signed = -abs(amount) if kind == "expense" else abs(amount)
+    b.name = name
+    b.amount = signed
+    b.cadence = cadence
+    b.autopost = bool(autopost)
+    b.account_id = UUID(account_id)
+    b.category_id = UUID(category_id) if category_id else None
+    if next_due:
+        b.next_due = date.fromisoformat(next_due)
+
+    await session.commit()
+    return RedirectResponse(url="/recurring", status_code=303)
