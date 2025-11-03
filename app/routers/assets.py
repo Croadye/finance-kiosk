@@ -1,69 +1,168 @@
 from __future__ import annotations
-from decimal import Decimal, InvalidOperation
+from datetime import datetime, date
+from decimal import Decimal
+from uuid import UUID, uuid4
+from typing import Optional
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
-from ..models import Setting
-from ..utils import calculate_current_networth, get_networth_offset
-
-router = APIRouter()
+from ..models import Asset, Setting
 templates = Jinja2Templates(directory="app/templates")
 
+router = APIRouter()
 
-def _parse_decimal(value: str | None) -> Decimal:
-    if not value:
-        return Decimal(0)
-    try:
-        return Decimal(value)
-    except (InvalidOperation, TypeError):
-        return Decimal(0)
+DEFAULT_ASSET_TYPES = [
+    {"name": "home"},
+    {"name": "vehicle"},
+    {"name": "trailer"},
+    {"name": "electronics"},
+    {"name": "other"},
+]
 
 
-async def _store_networth_offset(session: AsyncSession, baseline: Decimal, raw_net: Decimal) -> None:
-    offset = baseline - raw_net
-    row = await session.get(Setting, "networth_offset")
-    if row:
-        row.v_json = {"offset": float(offset)}
-    else:
-        session.add(Setting(k="networth_offset",
-                    v_json={"offset": float(offset)}))
-    await session.commit()
+async def get_asset_types(session: AsyncSession):
+    s = (await session.execute(
+        select(Setting).where(Setting.k == "asset_types")
+    )).scalars().first()
+    if s and getattr(s, "v_json", None):
+        types = s.v_json
+        if isinstance(types, list) and types:
+            return [t["name"] if isinstance(t, dict) else str(t) for t in types]
+    return [t["name"] for t in DEFAULT_ASSET_TYPES]
 
 
 @router.get("/assets", response_class=HTMLResponse)
-async def assets_overview(request: Request, session: AsyncSession = Depends(get_session)):
-    raw_net = await calculate_current_networth(session)
-    offset = await get_networth_offset(session)
-    display_net = raw_net + offset
-    return templates.TemplateResponse(
-        "assets_overview.html",
-        {
-            "request": request,
-            "raw_net": float(raw_net),
-            "offset": float(offset),
-            "display_net": float(display_net),
-        },
-    )
+async def assets_index(request: Request, session: AsyncSession = Depends(get_session)):
+    rows = (await session.execute(
+        select(Asset).where(Asset.is_archived == False).order_by(Asset.name)
+    )).scalars().all()
+
+    total_assets = sum([a.estimate_value or 0 for a in rows])
+    types = await get_asset_types(session)
+    return templates.TemplateResponse("assets_list.html", {
+        "request": request,
+        "assets": rows,
+        "total_assets": total_assets,
+        "types": types,
+    })
 
 
-@router.post("/assets/baseline")
-async def assets_baseline(
-    home_value: str = Form(""),
-    vehicles_value: str = Form(""),
-    bank_total_now: str = Form(""),
-    cc_debt_now: str = Form(""),
+@router.get("/assets/new", response_class=HTMLResponse)
+async def assets_new(request: Request, session: AsyncSession = Depends(get_session)):
+    types = await get_asset_types(session)
+    return templates.TemplateResponse("assets_new.html", {
+        "request": request,
+        "types": types,
+        "today": date.today().isoformat(),
+    })
+
+
+@router.post("/assets")
+async def assets_create(
+    name: str = Form(...),
+    # home | vehicle | trailer | electronics | other
+    kind: str = Form(...),
+    est_value: str = Form(""),
+    # generic details (we’ll stash in meta)
+    address: str = Form(""),
+    city: str = Form(""),
+    state: str = Form(""),
+    zip: str = Form(""),
+    year: str = Form(""),
+    make: str = Form(""),
+    model: str = Form(""),
+    trim: str = Form(""),
+    mileage: str = Form(""),
     session: AsyncSession = Depends(get_session),
 ):
-    baseline = (
-        _parse_decimal(home_value)
-        + _parse_decimal(vehicles_value)
-        + _parse_decimal(bank_total_now)
-        - _parse_decimal(cc_debt_now)
+    meta = {}
+    if kind == "home":
+        meta.update({"address": address, "city": city,
+                    "state": state, "zip": zip})
+    elif kind in ("vehicle", "trailer"):
+        meta.update({"year": year, "make": make, "model": model,
+                    "trim": trim, "mileage": mileage, "zip": zip})
+    elif kind == "electronics":
+        meta.update({"details": f"{make} {model} {trim}".strip()})
+
+    value = None
+    if est_value.strip():
+        value = Decimal(str(est_value).replace(",", "").strip())
+
+    a = Asset(
+        name=name.strip(),
+        kind=kind.strip().lower(),
+        estimate_value=value,
+        estimate_source="manual" if value is not None else None,
+        estimate_at=datetime.utcnow() if value is not None else None,
+        meta=meta or None,
+        is_archived=False,
     )
-    raw_net = await calculate_current_networth(session)
-    await _store_networth_offset(session, baseline, raw_net)
-    return RedirectResponse(url="/assets", status_code=303)
+    session.add(a)
+    await session.commit()
+    return RedirectResponse(url="/assets?notice=created", status_code=303)
+
+
+@router.get("/assets/{asset_id}/edit", response_class=HTMLResponse)
+async def assets_edit(asset_id: str, request: Request, session: AsyncSession = Depends(get_session)):
+    a = await session.get(Asset, UUID(asset_id))
+    if not a:
+        return RedirectResponse(url="/assets?error=not_found", status_code=303)
+    types = await get_asset_types(session)
+    return templates.TemplateResponse("assets_edit.html", {"request": request, "a": a, "types": types})
+
+
+@router.post("/assets/{asset_id}/edit")
+async def assets_update(
+    asset_id: str,
+    name: str = Form(...),
+    kind: str = Form(...),
+    est_value: str = Form(""),
+    address: str = Form(""),
+    city: str = Form(""),
+    state: str = Form(""),
+    zip: str = Form(""),
+    year: str = Form(""),
+    make: str = Form(""),
+    model: str = Form(""),
+    trim: str = Form(""),
+    mileage: str = Form(""),
+    session: AsyncSession = Depends(get_session),
+):
+    a = await session.get(Asset, UUID(asset_id))
+    if not a:
+        return RedirectResponse(url="/assets?error=not_found", status_code=303)
+
+    meta = {}
+    if kind == "home":
+        meta.update({"address": address, "city": city,
+                    "state": state, "zip": zip})
+    elif kind in ("vehicle", "trailer"):
+        meta.update({"year": year, "make": make, "model": model,
+                    "trim": trim, "mileage": mileage, "zip": zip})
+    elif kind == "electronics":
+        meta.update({"details": f"{make} {model} {trim}".strip()})
+
+    a.name = name.strip()
+    a.kind = kind.strip().lower()
+    a.meta = meta or None
+    if est_value.strip():
+        a.estimate_value = Decimal(str(est_value).replace(",", "").strip())
+        a.estimate_source = "manual"
+        a.estimate_at = datetime.utcnow()
+    await session.commit()
+    return RedirectResponse(url="/assets?notice=updated", status_code=303)
+
+
+@router.post("/assets/{asset_id}/archive")
+async def assets_archive(asset_id: str, session: AsyncSession = Depends(get_session)):
+    a = await session.get(Asset, UUID(asset_id))
+    if a:
+        a.is_archived = True
+        await session.commit()
+    return RedirectResponse(url="/assets?notice=archived", status_code=303)

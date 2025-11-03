@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<form method="post" action="/assets/{{ a.id }}/edit" class="max-w-3xl bg-slate-900 rounded-2xl p-4 shadow space-y-4">
+  <h2 class="text-lg font-semibold">Edit Asset</h2>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div>
+      <label class="block text-sm mb-1">Name</label>
+      <input name="name" value="{{ a.name }}" required class="w-full bg-slate-800 rounded-xl px-3 py-2">
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Type</label>
+      <select name="kind" class="w-full bg-slate-800 rounded-xl px-3 py-2" onchange="swapDetails()" required>
+        {% for t in types %}<option value="{{ t }}" {% if a.kind==t %}selected{% endif %}>{{ t|capitalize }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Estimated Value</label>
+      <input name="est_value" value="{{ a.estimate_value or '' }}" inputmode="decimal" class="w-full bg-slate-800 rounded-xl px-3 py-2 text-right">
+    </div>
+  </div>
+
+  {% set m = a.meta or {} %}
+
+  <div id="details_home" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div><label class="block text-sm mb-1">Address</label><input name="address" value="{{ m.address or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">City</label><input name="city" value="{{ m.city or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">State</label><input name="state" value="{{ m.state or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">ZIP</label><input name="zip" value="{{ m.zip or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+  </div>
+
+  <div id="details_vehicle" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div><label class="block text-sm mb-1">Year</label><input name="year" value="{{ m.year or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Make</label><input name="make" value="{{ m.make or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Model</label><input name="model" value="{{ m.model or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Trim</label><input name="trim" value="{{ m.trim or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Mileage</label><input name="mileage" value="{{ m.mileage or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">ZIP</label><input name="zip" value="{{ m.zip or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+  </div>
+
+  <div id="details_electronics" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div><label class="block text-sm mb-1">Make</label><input name="make" value="{{ m.make or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Model</label><input name="model" value="{{ m.model or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Trim/Notes</label><input name="trim" value="{{ m.trim or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+  </div>
+
+  <div class="pt-2 flex justify-end gap-2">
+    <a href="/assets" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Cancel</a>
+    <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Save</button>
+  </div>
+</form>
+
+<script>
+function swapDetails(){
+  const kind = document.querySelector('select[name="kind"]').value;
+  const K = kind;
+  const show = id => document.getElementById(id).classList.remove('hidden');
+  const hide = id => document.getElementById(id).classList.add('hidden');
+  hide('details_home'); hide('details_vehicle'); hide('details_electronics');
+  if(K==='home') show('details_home');
+  if(K==='vehicle'||K==='trailer') show('details_vehicle');
+  if(K==='electronics') show('details_electronics');
+}
+swapDetails();
+</script>
+{% endblock %}

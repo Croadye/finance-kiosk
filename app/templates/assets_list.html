@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+  <h2 class="text-xl font-semibold">Assets</h2>
+  <a href="/assets/new" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Add Asset</a>
+</div>
+
+<div class="bg-slate-900 rounded-2xl p-4 shadow">
+  <table class="min-w-full text-sm">
+    <thead class="text-slate-400 border-b border-slate-800">
+      <tr>
+        <th class="text-left py-2 pr-3">Name</th>
+        <th class="text-left py-2 pr-3">Type</th>
+        <th class="text-right py-2 pr-3">Est. Value</th>
+        <th class="text-left py-2 pr-3">Source</th>
+        <th class="text-left py-2 pr-3">Updated</th>
+        <th class="py-2"></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for a in assets %}
+      <tr class="border-b border-slate-800">
+        <td class="py-2 pr-3 font-medium">{{ a.name }}</td>
+        <td class="py-2 pr-3">{{ a.kind }}</td>
+        <td class="py-2 pr-3 text-right">{{ "{:,.2f}".format(a.estimate_value or 0) }}</td>
+        <td class="py-2 pr-3">{{ a.estimate_source or "—" }}</td>
+        <td class="py-2 pr-3">{{ a.estimate_at or "—" }}</td>
+        <td class="py-2 pr-0 text-right">
+          <a href="/assets/{{ a.id }}/edit" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700">Edit</a>
+          <form method="post" action="/assets/{{ a.id }}/archive" class="inline">
+            <button class="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white" onclick="return confirm('Archive this asset?')">Archive</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td></td><td class="text-right py-2 pr-3 font-medium">Total</td>
+        <td class="text-right py-2 pr-3 font-semibold">{{ "{:,.2f}".format(total_assets or 0) }}</td>
+        <td colspan="3"></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% endblock %}

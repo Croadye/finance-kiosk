@@ -1,9 +1,12 @@
+from typing import Any
 import uuid
 from datetime import datetime, date
-from sqlalchemy import ForeignKey, Text, Boolean, Numeric, Integer, String, Date, func
+from sqlalchemy import DateTime, ForeignKey, Index, Text, Boolean, Numeric, Integer, String, Date, func
 from sqlalchemy.dialects.postgresql import UUID, TIMESTAMP, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
+from decimal import Decimal
+
 
 ACCOUNT_TYPES = ('checking', 'savings', 'cash', 'credit')
 
@@ -68,7 +71,10 @@ class Transaction(Base):
         Numeric(12, 2), nullable=False)  # +inflow, -outflow
     cleared: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True)
-    transfer_group_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+
+
+    transfer_group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), index=True, nullable=True)
 
 
     account = relationship("Account", back_populates="transactions")
@@ -142,3 +148,30 @@ class Setting(Base):
     __tablename__ = "settings"
     k: Mapped[str] = mapped_column(String(80), primary_key=True)
     v_json = mapped_column(JSONB, nullable=False, default=dict)
+
+
+class Asset(Base):
+    __tablename__ = "assets"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    # home | vehicle | trailer | electronics | other
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+
+    estimate_value: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2), nullable=True)
+    estimate_source: Mapped[str | None] = mapped_column(
+        String(32), nullable=True)
+    estimate_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True)
+
+    # flexible details (address/city/state/zip OR year/make/model/trim/mileage, etc.)
+    meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+
+    is_archived: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (Index("ix_assets_kind", "kind"),)

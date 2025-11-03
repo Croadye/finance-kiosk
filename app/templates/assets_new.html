@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<form method="post" action="/assets" class="max-w-3xl bg-slate-900 rounded-2xl p-4 shadow space-y-4">
+  <h2 class="text-lg font-semibold">Add Asset</h2>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Name</label>
+      <input name="name" required class="w-full bg-slate-800 rounded-xl px-3 py-2" placeholder="e.g., Primary Home / Civic EX / MacBook Pro">
+    </div>
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Type</label>
+      <select name="kind" class="w-full bg-slate-800 rounded-xl px-3 py-2" onchange="swapDetails()" required>
+        {% for t in types %}<option value="{{ t }}">{{ t|capitalize }}</option>{% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Estimated Value</label>
+      <input name="est_value" inputmode="decimal" class="w-full bg-slate-800 rounded-xl px-3 py-2 text-right" placeholder="0.00">
+    </div>
+  </div>
+
+  <div id="details_home" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div><label class="block text-sm mb-1">Address</label><input name="address" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">City</label><input name="city" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">State</label><input name="state" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">ZIP</label><input name="zip" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+  </div>
+
+  <div id="details_vehicle" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div><label class="block text-sm mb-1">Year</label><input name="year" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Make</label><input name="make" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Model</label><input name="model" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Trim</label><input name="trim" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Mileage</label><input name="mileage" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">ZIP</label><input name="zip" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+  </div>
+
+  <div id="details_electronics" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div><label class="block text-sm mb-1">Make</label><input name="make" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Model</label><input name="model" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">Trim/Notes</label><input name="trim" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+  </div>
+
+  <div class="pt-2 flex justify-end gap-2">
+    <a href="/assets" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Cancel</a>
+    <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Save</button>
+  </div>
+</form>
+
+<script>
+function swapDetails(){
+  const kind = document.querySelector('select[name="kind"]').value;
+  document.getElementById('details_home').classList.add('hidden');
+  document.getElementById('details_vehicle').classList.add('hidden');
+  document.getElementById('details_electronics').classList.add('hidden');
+  if(kind === 'home') document.getElementById('details_home').classList.remove('hidden');
+  if(kind === 'vehicle' || kind === 'trailer') document.getElementById('details_vehicle').classList.remove('hidden');
+  if(kind === 'electronics') document.getElementById('details_electronics').classList.remove('hidden');
+}
+swapDetails();
+</script>
+{% endblock %}
