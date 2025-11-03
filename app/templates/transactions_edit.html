@@ -54,7 +54,7 @@
               </select>
             </td>
             <td class="py-2 pr-4 text-right">
-              <input name="split_amount" inputmode="decimal" value="{{ '%.2f'|format(abs(s.amount or 0)) }}"
+              <input name="split_amount" inputmode="decimal" value="{{'%.2f'|format((s.amount or 0) | abs) }}"
                      class="w-32 text-right bg-slate-800 rounded-xl px-2 py-1 recalc">
             </td>
             <td class="py-2 pr-2 text-right">
@@ -71,7 +71,7 @@
               </select>
             </td>
             <td class="py-2 pr-4 text-right">
-              <input name="split_amount" inputmode="decimal" value="{{ '%.2f'|format(total_abs) }}"
+              <input name="split_amount" inputmode="decimal" value="{{ '%.2f'|format((s.total_abs) | abs) }}"
                      class="w-32 text-right bg-slate-800 rounded-xl px-2 py-1 recalc">
             </td>
             <td class="py-2 pr-2 text-right">

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-xl font-semibold mb-3">Assets &amp; Baseline</h2>
+<p class="text-slate-300 mb-6 max-w-3xl">
+  Use this hub to keep an eye on asset values and to anchor the dashboard's net worth display.
+  Update the baseline manually today, then explore the data-source ideas below to automate
+  valuations as we wire them into the app.
+</p>
+
+<div class="grid gap-6 lg:grid-cols-2">
+  <section class="bg-slate-900 rounded-2xl p-5 shadow space-y-4">
+    <header>
+      <h3 class="text-lg font-semibold">Manual baseline</h3>
+      <p class="text-slate-400 text-sm">
+        These inputs set an offset so the dashboard matches your current snapshot immediately.
+      </p>
+    </header>
+    <div class="text-slate-200 space-y-1">
+      <div>Current net worth from accounts: <b>${{ '%.2f'|format(raw_net) }}</b></div>
+      <div>Offset in use: <b>${{ '%.2f'|format(offset) }}</b></div>
+      <div>Displayed net worth: <b>${{ '%.2f'|format(display_net) }}</b></div>
+    </div>
+    <form method="post" action="/assets/baseline" class="space-y-3">
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Home value</label>
+        <input name="home_value" inputmode="decimal" class="w-full bg-slate-800 rounded-xl px-3 py-2" placeholder="e.g., 450000">
+      </div>
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Vehicles total value</label>
+        <input name="vehicles_value" inputmode="decimal" class="w-full bg-slate-800 rounded-xl px-3 py-2" placeholder="e.g., 32000">
+      </div>
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Bank total (now)</label>
+        <input name="bank_total_now" inputmode="decimal" class="w-full bg-slate-800 rounded-xl px-3 py-2" placeholder="e.g., 8700">
+      </div>
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Credit card debt (now)</label>
+        <input name="cc_debt_now" inputmode="decimal" class="w-full bg-slate-800 rounded-xl px-3 py-2" placeholder="e.g., 2400">
+      </div>
+      <p class="text-xs text-slate-400">Baseline = home + vehicles + bank − credit cards. We adjust the offset so your dashboard
+        net worth matches the baseline right away.</p>
+      <div class="pt-2 flex justify-end">
+        <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Save Baseline</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="bg-slate-900 rounded-2xl p-5 shadow space-y-4">
+    <header>
+      <h3 class="text-lg font-semibold">Automated valuation ideas</h3>
+      <p class="text-slate-400 text-sm">Research targets for fetching asset values programmatically.</p>
+    </header>
+    <article class="space-y-3">
+      <div>
+        <h4 class="font-semibold">Real estate</h4>
+        <ul class="list-disc list-inside text-sm text-slate-300 space-y-1">
+          <li><b>Zillow API:</b> Zillow's Rapid API "property detail" endpoints supply Zestimate estimates when you provide an address. We can store the property ID and refresh values on demand.</li>
+          <li><b>Alternative feeds:</b> Redfin and Realtor.com expose unofficial JSON payloads via their public search pages if we need a fallback source.</li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold">Vehicles</h4>
+        <ul class="list-disc list-inside text-sm text-slate-300 space-y-1">
+          <li><b>Kelley Blue Book:</b> The KBB developer portal offers vehicle valuation APIs once registered; values are keyed by VIN and mileage.</li>
+          <li><b>Edmunds listings:</b> Edmunds publishes a pricing API (via Rapid API) that can provide MSRP and used value ranges for given models.</li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold">Automation approach</h4>
+        <ol class="list-decimal list-inside text-sm text-slate-300 space-y-1">
+          <li>Create asset records (home, vehicles) that store provider identifiers (address, VIN, etc.).</li>
+          <li>Schedule background fetches to update valuations nightly.</li>
+          <li>Surface latest fetched value and timestamp here, with overrides when manual adjustments are needed.</li>
+        </ol>
+      </div>
+    </article>
+  </section>
+</div>
+{% endblock %}

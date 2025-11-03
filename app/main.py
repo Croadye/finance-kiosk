@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from .routers import health, dashboard, transactions
-from .routers import budget, settings, recurring, accounts
+from .routers import budget, settings, recurring, accounts, assets
 
 app = FastAPI(title="Money Kiosk")
 
@@ -14,3 +14,4 @@ app.include_router(budget.router, tags=["ui"])
 app.include_router(settings.router, tags=["ui"])
 app.include_router(recurring.router, tags=["ui"])
 app.include_router(accounts.router, tags=["ui"])
+app.include_router(assets.router, tags=["ui"])
