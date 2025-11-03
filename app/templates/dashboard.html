@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+  <div class="bg-slate-900 rounded-2xl p-4 shadow border border-slate-800">
+    <div class="text-sm text-slate-400">Net Worth</div>
+    <div class="text-3xl font-semibold mt-1">${{ "{:,.2f}".format(net_worth|float) }}</div>
+  </div>
+  <div class="bg-slate-900 rounded-2xl p-4 shadow border border-slate-800">
+    <div class="text-sm text-slate-400">Current Debts</div>
+    <div class="text-3xl font-semibold mt-1">${{ "{:,.2f}".format(current_debts|float) }}</div>
+  </div>
+  <div class="bg-slate-900 rounded-2xl p-4 shadow border border-slate-800">
+    <div class="text-sm text-slate-400">Cash Available</div>
+    <div class="text-3xl font-semibold mt-1">${{ "{:,.2f}".format(cash_available|float) }}</div>
+  </div>
+  <div class="bg-slate-900 rounded-2xl p-4 shadow border border-slate-800">
+    <div class="text-sm text-slate-400">Spent This Month</div>
+    <div class="text-3xl font-semibold mt-1">${{ "{:,.2f}".format(spent_this_month|float) }}</div>
+  </div>
+</div>
+
+<div class="mt-6">
+  <a href="/accounts" class="inline-flex items-center px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white text-lg">
+    View Accounts
+  </a>
+  <a href="/transactions/new" class="inline-flex items-center px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-lg ml-2">
+    + Quick Add
+  </a>
+</div>
+{% endblock %}

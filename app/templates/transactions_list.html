@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex items-center justify-between mb-3">
+  <h2 class="text-xl font-semibold">Transactions</h2>
+  <form method="get" class="flex items-center gap-2">
+    <input name="q" value="{{ q }}" placeholder="Search payee or memo"
+           class="bg-slate-800 rounded-xl px-3 py-2 w-64">
+    <button class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Search</button>
+  </form>
+</div>
+
+<div class="overflow-x-auto">
+  <table class="min-w-full text-left text-sm">
+    <thead class="text-slate-400">
+      <tr>
+        <th class="py-2 pr-4">Date</th>
+        <th class="py-2 pr-4">Account</th>
+        <th class="py-2 pr-4">Category</th>
+        <th class="py-2 pr-4">Payee</th>
+        <th class="py-2 pr-4">Memo</th>
+        <th class="py-2 pr-4 text-right">Amount</th>
+        <th class="py-2 pr-2"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="border-b border-slate-800 hover:bg-slate-900/50">
+        <td class="py-2 pr-4">{{ r.ts.strftime("%Y-%m-%d %H:%M") }}</td>
+        <td class="py-2 pr-4">{{ r.account_name }}</td>
+        <td class="py-2 pr-4">{{ r.category_name or "—" }}</td>
+        <td class="py-2 pr-4">{{ r.payee or "—" }}</td>
+        <td class="py-2 pr-4">{{ r.memo or "—" }}</td>
+        <td class="py-2 pr-4 text-right {% if r.amount < 0 %}text-red-400{% else %}text-emerald-400{% endif %}">
+          ${{ '%.2f'|format(r.amount) }}
+        </td>
+        <td class="py-2 pr-2 text-right">
+          <a href="/transactions/{{ r.id }}/edit" class="px-2 py-1 bg-slate-800 rounded-lg hover:bg-slate-700">Edit</a>
+          <form method="post" action="/transactions/{{ r.id }}/delete" style="display:inline"
+                onsubmit="return confirm('Delete this transaction?');">
+            <button class="px-2 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      {% if rows|length == 0 %}
+      <tr><td colspan="7" class="py-6 text-center text-slate-400">No transactions yet.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+{% set pages = ( (total + per - 1) // per ) %}
+{% if pages > 1 %}
+<div class="mt-4 flex items-center gap-2">
+  {% for p in range(1, pages+1) %}
+    {% if p == page %}
+      <span class="px-3 py-1 rounded-lg bg-slate-700">{{p}}</span>
+    {% else %}
+      <a href="/transactions?page={{p}}&per={{per}}&q={{q}}" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700">{{p}}</a>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

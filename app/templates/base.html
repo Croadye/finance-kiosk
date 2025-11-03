@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finance Kiosk</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="/static/app.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen select-none">
+  <div class="max-w-6xl mx-auto p-4">
+    <header class="flex items-center justify-between mb-4">
+        <h1 class="text-2xl font-bold tracking-tight">Finance Kiosk</h1>
+        <nav class="space-x-2">
+            <a href="/" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Dashboard</a>
+            <a href="/budget" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Budget</a>
+            <a href="/accounts" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Accounts</a>
+            <a href="/transactions" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Transactions</a>
+            <a href="/recurring" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Recurring</a>
+            <a href="/transactions/new" class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500">+ Add</a>
+            <a href="/settings/networth" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Settings</a>
+        </nav>
+
+
+
+
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

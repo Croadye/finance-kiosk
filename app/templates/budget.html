@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex items-center justify-between mb-3">
+  <h2 class="text-xl font-semibold">Budget — {{ month_str }}</h2>
+  <form method="get" action="/budget" class="flex items-center gap-2">
+    <input type="month" name="month" value="{{ month_str }}" class="bg-slate-800 rounded-xl px-3 py-2">
+    <button class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Go</button>
+  </form>
+</div>
+<div class="mb-3 rounded-xl bg-slate-900 border border-slate-800 p-3">
+  <details>
+    <summary class="cursor-pointer text-slate-200 font-medium">How to use Budget</summary>
+    <div class="text-slate-300 mt-2 space-y-2 text-sm leading-relaxed">
+      <p><strong>Planned</strong>: the monthly cap you set for each category.</p>
+      <p><strong>Spent</strong>: adds up all expenses (negative amounts) posted to that category this month.</p>
+      <p><strong>Available</strong> = Planned − Spent. If it goes red, you’re over budget.</p>
+      <ul class="list-disc ml-5">
+        <li>Use the <em>Planned</em> inputs to set caps and click <b>Save Budget</b>.</li>
+        <li>Record purchases via <b>+ Add</b> → pick the account and category.</li>
+        <li>Change months with the picker (top-right).</li>
+      </ul>
+    </div>
+  </details>
+</div>
+
+<form method="post" action="/budget/update">
+  <input type="hidden" name="month" value="{{ month_str }}">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-left text-sm">
+      <thead class="text-slate-400">
+        <tr>
+          <th class="py-2 pr-4">Category</th>
+          <th class="py-2 pr-4">Planned</th>
+          <th class="py-2 pr-4">Spent</th>
+          <th class="py-2 pr-4">Available</th>
+        </tr>
+      </thead>
+      
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-b border-slate-800 hover:bg-slate-900/50">
+          <td class="py-2 pr-4">
+            <div class="font-medium">{{ r.name }}</div>
+            {% if r.group %}<div class="text-xs text-slate-400">{{ r.group }}</div>{% endif %}
+          </td>
+          <td class="py-2 pr-4">
+            <input name="planned_{{ r.id }}" value="{{ '%.2f'|format(r.planned) }}" inputmode="decimal"
+                   class="w-28 bg-slate-800 rounded-xl px-2 py-1 text-right">
+          </td>
+          <td class="py-2 pr-4">${{ '%.2f'|format(r.spent) }}</td>
+          <td class="py-2 pr-4 {% if r.available < 0 %}text-red-400{% endif %}">
+            ${{ '%.2f'|format(r.available) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="text-slate-300">
+        <tr>
+          <td class="py-2 pr-4 font-semibold">Totals</td>
+          <td class="py-2 pr-4 font-semibold">${{ '%.2f'|format(total_planned) }}</td>
+          <td class="py-2 pr-4 font-semibold">${{ '%.2f'|format(total_spent) }}</td>
+          <td class="py-2 pr-4 font-semibold {% if total_available < 0 %}text-red-400{% endif %}">
+            ${{ '%.2f'|format(total_available) }}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="mt-4 flex justify-end">
+    <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Save Budget</button>
+  </div>
+</form>
+{% endblock %}

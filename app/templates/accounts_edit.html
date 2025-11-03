@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<form method="post" action="/accounts/{{ acc.id }}/edit" class="max-w-md bg-slate-900 rounded-2xl p-4 shadow space-y-3">
+  <h2 class="text-lg font-semibold">Edit Account</h2>
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Name</label>
+    <input name="name" value="{{ acc.name }}" class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+  </div>
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Type</label>
+    <input name="type" value="{{ acc.type }}" class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+  </div>
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Opening Balance</label>
+    <input name="opening_balance" inputmode="decimal" value="{{ '%.2f'|format(acc.opening_balance or 0) }}" class="w-full bg-slate-800 rounded-xl px-3 py-2">
+  </div>
+  <div class="flex items-center gap-2">
+    <input id="arch" type="checkbox" name="is_archived" value="1" {% if acc.is_archived %}checked{% endif %} class="scale-125">
+    <label for="arch" class="text-slate-300">Archived</label>
+  </div>
+  <div class="pt-2 flex justify-end">
+    <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Save</button>
+  </div>
+</form>
+{% endblock %}

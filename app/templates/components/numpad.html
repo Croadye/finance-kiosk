@@ -1,0 +1,10 @@
+<div class="grid grid-cols-3 gap-2 mt-3">
+  {% for row in [['7','8','9'],['4','5','6'],['1','2','3']] %}
+    {% for key in row %}
+      <button type="button" data-key="{{key}}" class="nkey py-4 text-xl rounded-xl bg-slate-800 hover:bg-slate-700">{{key}}</button>
+    {% endfor %}
+  {% endfor %}
+  <button type="button" data-key="C" class="nkey py-4 text-xl rounded-xl bg-slate-800 hover:bg-slate-700">C</button>
+  <button type="button" data-key="0" class="nkey py-4 text-xl rounded-xl bg-slate-800 hover:bg-slate-700">0</button>
+  <button type="button" data-key="." class="nkey py-4 text-xl rounded-xl bg-slate-800 hover:bg-slate-700">.</button>
+</div>
