@@ -11,7 +11,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
-from ..models import Asset, Setting
+from ..models import Asset
 templates = Jinja2Templates(directory="app/templates")
 
 router = APIRouter()
@@ -26,13 +26,6 @@ DEFAULT_ASSET_TYPES = [
 
 
 async def get_asset_types(session: AsyncSession):
-    s = (await session.execute(
-        select(Setting).where(Setting.k == "asset_types")
-    )).scalars().first()
-    if s and getattr(s, "v_json", None):
-        types = s.v_json
-        if isinstance(types, list) and types:
-            return [t["name"] if isinstance(t, dict) else str(t) for t in types]
     return [t["name"] for t in DEFAULT_ASSET_TYPES]
 
 

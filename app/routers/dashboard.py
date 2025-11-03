@@ -3,8 +3,10 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
-from ..models import Account, Transaction, Setting
+from ..models import Account, Transaction
 from fastapi.templating import Jinja2Templates
+from ..services.metrics import compute_dashboard_metrics
+
 from ..utils import DEFAULT_ACCOUNT_TYPES, get_account_types
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -30,13 +32,7 @@ async def dashboard(request: Request, session: AsyncSession = Depends(get_sessio
 
     # offset for net worth
     offset = 0.0
-    s = await session.get(Setting, "networth_offset")
-    if s and s.v_json is not None:
-        try:
-            offset = float(s.v_json if isinstance(
-                s.v_json, (int, float)) else s.v_json.get("offset", 0.0))
-        except:  # keep 0
-            pass
+    
     net_worth = raw_net + offset
 
     cash_available = float(sum(
@@ -64,13 +60,9 @@ async def dashboard(request: Request, session: AsyncSession = Depends(get_sessio
     )).scalar_one()
     spent_this_month = float(-spent_raw if spent_raw else 0.0)
 
-    metrics = {
-        "net_worth": net_worth,
-        "cash_available": cash_available,
-        "current_debts": current_debts,
-        "spent_this_month": spent_this_month,
-    }
+    metrics = await compute_dashboard_metrics(session)
+
     if request.query_params.get("raw") == "1":
         return JSONResponse(metrics)
 
-    return templates.TemplateResponse("dashboard.html", {"request": request, **metrics})
+    return templates.TemplateResponse("dashboard.html", {"request": request, "metrics": metrics})

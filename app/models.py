@@ -144,12 +144,6 @@ class Attachment(Base):
     mime: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
 
-class Setting(Base):
-    __tablename__ = "settings"
-    k: Mapped[str] = mapped_column(String(80), primary_key=True)
-    v_json = mapped_column(JSONB, nullable=False, default=dict)
-
-
 class Asset(Base):
     __tablename__ = "assets"
 

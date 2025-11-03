@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from .models import Setting, Account, Transaction
+from .models import Account, Transaction
 
 DEFAULT_ACCOUNT_TYPES: List[Dict[str, Any]] = [
     {"name": "checking",      "is_debt": False},
@@ -21,18 +21,9 @@ DEFAULT_ACCOUNT_TYPES: List[Dict[str, Any]] = [
 
 
 async def get_account_types(session: AsyncSession) -> List[Dict[str, Any]]:
-    row = await session.get(Setting, "account_types")
-    v = getattr(row, "v_json", None)
-    if not v:
-        return DEFAULT_ACCOUNT_TYPES
-    # normalize: keep only expected keys
-    out = []
-    for t in v:
-        name = (t.get("name") or "").strip()
-        if not name:
-            continue
-        out.append({"name": name, "is_debt": bool(t.get("is_debt"))})
-    return out
+    
+    return DEFAULT_ACCOUNT_TYPES
+    
 
 
 def month_start(d: date) -> date:

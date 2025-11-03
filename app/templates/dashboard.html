@@ -1,22 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-  <div class="bg-slate-900 rounded-2xl p-4 shadow border border-slate-800">
-    <div class="text-sm text-slate-400">Net Worth</div>
-    <div class="text-3xl font-semibold mt-1">${{ "{:,.2f}".format(net_worth|float) }}</div>
+{% set m = metrics %}
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-slate-900 rounded-2xl p-4 shadow">
+    <div class="text-slate-400 text-xs uppercase tracking-wide">Net Worth</div>
+    <div class="text-2xl font-semibold mt-1">${{ "{:,.2f}".format(m.net_worth or 0) }}</div>
   </div>
-  <div class="bg-slate-900 rounded-2xl p-4 shadow border border-slate-800">
-    <div class="text-sm text-slate-400">Current Debts</div>
-    <div class="text-3xl font-semibold mt-1">${{ "{:,.2f}".format(current_debts|float) }}</div>
+  <div class="bg-slate-900 rounded-2xl p-4 shadow">
+    <div class="text-slate-400 text-xs uppercase tracking-wide">Current Debts</div>
+    <div class="text-2xl font-semibold mt-1">${{ "{:,.2f}".format(m.current_debts or 0) }}</div>
   </div>
-  <div class="bg-slate-900 rounded-2xl p-4 shadow border border-slate-800">
-    <div class="text-sm text-slate-400">Cash Available</div>
-    <div class="text-3xl font-semibold mt-1">${{ "{:,.2f}".format(cash_available|float) }}</div>
+  <div class="bg-slate-900 rounded-2xl p-4 shadow">
+    <div class="text-slate-400 text-xs uppercase tracking-wide">Cash Available</div>
+    <div class="text-2xl font-semibold mt-1">${{ "{:,.2f}".format(m.cash_available or 0) }}</div>
   </div>
-  <div class="bg-slate-900 rounded-2xl p-4 shadow border border-slate-800">
-    <div class="text-sm text-slate-400">Spent This Month</div>
-    <div class="text-3xl font-semibold mt-1">${{ "{:,.2f}".format(spent_this_month|float) }}</div>
+  <div class="bg-slate-900 rounded-2xl p-4 shadow">
+    <div class="text-slate-400 text-xs uppercase tracking-wide">Spent This Month</div>
+    <div class="text-2xl font-semibold mt-1">${{ "{:,.2f}".format(m.spent_this_month or 0) }}</div>
   </div>
 </div>
 
