@@ -95,7 +95,7 @@ async def accounts_debt_total(session):
     tx_sum = await _tx_sum_by_account(session)
     bal_expr = _account_running_balance_expr(Account, tx_sum)
     q = (
-        select(func.coalesce(func.sum(func.greatest(bal_expr, 0)), 0.0))
+        select(func.coalesce(func.sum(-func.least(bal_expr, 0)), 0.0))
         .select_from(Account)
         .join(tx_sum, tx_sum.c.account_id == Account.id, isouter=True)
         .where(and_(Account.is_archived.is_(False), Account.is_debt.is_(True)))
