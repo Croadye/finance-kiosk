@@ -121,7 +121,20 @@ async def spent_this_month(session):
     Assumes negative Transaction.amount = money leaving the account.
     If you encode direction differently, adjust the predicate.
     """
-    first_of_month = date.today().replace(day=1)
+    today = datetime.now(timezone.utc)
+    first_of_month = today.date().replace(day=1)
+    if first_of_month.month == 12:
+        first_of_next_month = date(first_of_month.year + 1, 1, 1)
+    else:
+        first_of_next_month = date(
+            first_of_month.year, first_of_month.month + 1, 1)
+
+    first_of_month_dt = datetime.combine(
+        first_of_month, datetime.min.time(), tzinfo=today.tzinfo
+    )
+    first_of_next_month_dt = datetime.combine(
+        first_of_next_month, datetime.min.time(), tzinfo=today.tzinfo
+    )
     q = (
         # flip to make positive “spent”
         select(func.coalesce(func.sum(-Transaction.amount), 0.0))
@@ -130,7 +143,8 @@ async def spent_this_month(session):
         .where(
             and_(
                 Account.is_debt.is_(False),
-                Transaction.date >= first_of_month,
+                Transaction.ts >= first_of_month_dt,
+                Transaction.ts < first_of_next_month_dt,
                 Transaction.amount < 0,
             )
         )
