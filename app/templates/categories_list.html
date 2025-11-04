@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-3xl bg-slate-900 rounded-2xl p-6 shadow space-y-6">
+  <div>
+    <h2 class="text-xl font-semibold">Transaction Categories</h2>
+    <p class="text-sm text-slate-400">Create and organize categories that will be available when recording transactions.</p>
+  </div>
+
+  {% if created %}
+    <div class="px-3 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/40 text-emerald-200 text-sm">
+      Category saved.
+    </div>
+  {% endif %}
+
+  {% if error %}
+    <div class="px-3 py-2 rounded-xl bg-rose-600/20 border border-rose-500/40 text-rose-200 text-sm">
+      {{ error }}
+    </div>
+  {% endif %}
+
+  <form method="post" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+    <div class="md:col-span-2">
+      <label class="block text-sm text-slate-300 mb-1">Name</label>
+      <input name="name" value="{{ form_name }}" placeholder="e.g. Groceries" required class="w-full bg-slate-800 rounded-xl px-3 py-2">
+    </div>
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Group <span class="text-slate-500">(optional)</span></label>
+      <input name="group" value="{{ form_group }}" placeholder="e.g. Household" class="w-full bg-slate-800 rounded-xl px-3 py-2">
+    </div>
+    <div class="md:col-span-3 flex justify-end">
+      <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Add category</button>
+    </div>
+  </form>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="text-slate-400">
+        <tr>
+          <th class="text-left py-2 pr-4">Name</th>
+          <th class="text-left py-2 pr-4">Group</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for category in categories %}
+        <tr class="border-t border-slate-800">
+          <td class="py-2 pr-4">{{ category.name }}</td>
+          <td class="py-2 pr-4">{{ category.group or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="2" class="py-4 text-slate-400 text-center">No categories yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
