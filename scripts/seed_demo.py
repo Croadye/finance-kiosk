@@ -12,13 +12,13 @@ async def main():
         if not have_accounts:
             session.add_all([
                 Account(name="Checking", type="checking",
-                        opening_balance=Decimal('1500.00')),
+                        opening_balance=Decimal('1500.00'), is_debt=False),
                 Account(name="Savings", type="savings",
-                        opening_balance=Decimal('5000.00')),
+                        opening_balance=Decimal('5000.00'), is_debt=False),
                 Account(name="Cash", type="cash",
-                        opening_balance=Decimal('120.00')),
+                        opening_balance=Decimal('120.00'), is_debt=False),
                 Account(name="Credit Card", type="credit",
-                        opening_balance=Decimal('0.00')),
+                        opening_balance=Decimal('0.00'), is_debt=True),
             ])
             print("Seeded accounts.")
         # Categories
