@@ -106,9 +106,10 @@ async def accounts_debt_total(session):
 
 
 async def assets_total(session):
-    # If your model uses a different field (e.g., estimated_value), swap it here.
-    q = select(func.coalesce(func.sum(Asset.current_value), 0.0)
-               ).where(Asset.is_archived.is_(False))
+    # Sum the tracked estimate value for active assets.
+    q = select(
+        func.coalesce(func.sum(Asset.estimate_value), 0.0)
+    ).where(Asset.is_archived.is_(False))
     return (await session.execute(q)).scalar_one()
 
 # --- Spending this month -----------------------------------------------------
