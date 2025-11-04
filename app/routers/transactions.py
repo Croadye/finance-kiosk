@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import List
 from sqlalchemy import select
 from fastapi import Request
@@ -160,9 +160,15 @@ async def transactions_create(
 
     signed_total = -abs(base) if kind == "expense" else abs(base)
 
+    try:
+        tx_day = date.fromisoformat(tx_date)
+    except ValueError:
+        tx_day = date.today()
+    ts = datetime.combine(tx_day, datetime.min.time(), tzinfo=timezone.utc)
+    
     tx = Transaction(
         account_id=UUID(account_id),
-        date=date.fromisoformat(tx_date),
+        ts=ts,
         amount=signed_total,
         payee=payee.strip()[:80] if payee else None,
         memo=memo.strip()[:200] if memo else None,
