@@ -112,6 +112,14 @@ class Bill(Base):
         UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True)
     category_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("categories.id"), nullable=True)
+    from_account_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True)
+    to_account_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True)
+
+    account = relationship("Account", foreign_keys=[account_id])
+    from_account = relationship("Account", foreign_keys=[from_account_id])
+    to_account = relationship("Account", foreign_keys=[to_account_id])
 
 
 class Rule(Base):

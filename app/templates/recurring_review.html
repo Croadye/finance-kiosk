@@ -1,5 +1,4 @@
-{% extends "base.html" %}
-{% block content %}
+{% extends "base.html" %} {% block content %}
 <h2 class="text-xl font-semibold mb-3">Confirm Due Items</h2>
 <form method="post" action="/recurring/confirm">
   <div class="overflow-x-auto">
@@ -7,6 +6,8 @@
       <thead class="text-slate-400">
         <tr>
           <th class="py-2 pr-4">Name</th>
+          <th class="py-2 pr-4">Accounts</th>
+
           <th class="py-2 pr-4">Due</th>
           <th class="py-2 pr-4">Amount</th>
         </tr>
@@ -15,12 +16,24 @@
         {% for b in rows %}
         <tr class="border-b border-slate-800">
           <td class="py-2 pr-4">{{ b.name }}</td>
+          <td class="py-2 pr-4 text-slate-300">
+            {% if b.from_account and b.to_account %} {{ b.from_account.name }} →
+            {{ b.to_account.name }} {% elif b.from_account %} {{
+            b.from_account.name }} {% elif b.to_account %} {{ b.to_account.name
+            }} {% elif b.account %} {{ b.account.name }} {% else %} — {% endif
+            %}
+          </td>
           <td class="py-2 pr-4">{{ b.next_due }}</td>
           <td class="py-2 pr-4">
-            <input name="amount_{{ b.id }}" inputmode="decimal"
-                   value="{{ '%.2f'|format(abs(b.amount)) }}"
-                   class="w-32 text-right bg-slate-800 rounded-xl px-2 py-1">
-            <span class="text-slate-400 text-xs ml-2">(negative if expense)</span>
+            <input
+              name="amount_{{ b.id }}"
+              inputmode="decimal"
+              value="{{ '%.2f'|format(abs(b.amount)) }}"
+              class="w-32 text-right bg-slate-800 rounded-xl px-2 py-1"
+            />
+            <span class="text-slate-400 text-xs ml-2"
+              >(negative if expense)</span
+            >
           </td>
         </tr>
         {% endfor %}
@@ -29,7 +42,11 @@
   </div>
 
   <div class="mt-4 flex justify-end">
-    <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Post All</button>
+    <button
+      class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white"
+    >
+      Post All
+    </button>
   </div>
 </form>
 {% endblock %}

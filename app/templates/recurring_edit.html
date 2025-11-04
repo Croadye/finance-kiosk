@@ -1,7 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
-<form method="post" action="/recurring/{{ b.id }}/edit" class="max-w-xl bg-slate-900 rounded-2xl p-4 shadow space-y-3">
+<form id="recurring-form" method="post" action="/recurring/{{ b.id }}/edit" class="max-w-xl bg-slate-900 rounded-2xl p-4 shadow space-y-3">
   <h2 class="text-lg font-semibold">Edit Recurring Item</h2>
+
+  {% if err == 'same_accounts' %}
+  <div class="px-3 py-2 bg-rose-900/40 border border-rose-700 rounded-xl text-sm text-rose-200">
+    From and to accounts must be different for a transfer.
+  </div>
+  {% elif err == 'missing_account' %}
+  <div class="px-3 py-2 bg-rose-900/40 border border-rose-700 rounded-xl text-sm text-rose-200">
+    Select at least one account to post this item.
+  </div>
+  {% endif %}
 
   <div>
     <label class="block text-sm text-slate-300 mb-1">Name</label>
@@ -39,10 +49,21 @@
   </div>
 
   <div>
-    <label class="block text-sm text-slate-300 mb-1">Account</label>
-    <select name="account_id" class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+    <label class="block text-sm text-slate-300 mb-1">From account</label>
+    <select name="from_account_id" class="w-full bg-slate-800 rounded-xl px-3 py-2">
+      <option value="">— none —</option>
       {% for id, name in accounts %}
-      <option value="{{id}}" {% if id==b.account_id %}selected{% endif %}>{{name}}</option>
+      <option value="{{id}}" {% if id==b.from_account_id %}selected{% endif %}>{{name}}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">To account</label>
+    <select name="to_account_id" class="w-full bg-slate-800 rounded-xl px-3 py-2">
+      <option value="">— none —</option>
+      {% for id, name in accounts %}
+      <option value="{{id}}" {% if id==b.to_account_id %}selected{% endif %}>{{name}}</option>
       {% endfor %}
     </select>
   </div>
@@ -72,4 +93,50 @@
     </div>
   </div>
 </form>
+<script>
+(function() {
+  const form = document.getElementById('recurring-form');
+  if (!form) return;
+  const fromSelect = form.querySelector('select[name="from_account_id"]');
+  const toSelect = form.querySelector('select[name="to_account_id"]');
+  const categorySelect = form.querySelector('select[name="category_id"]');
+  const warningId = 'account-warning';
+
+  function updateCategoryState() {
+    const isTransfer = fromSelect.value && toSelect.value;
+    categorySelect.disabled = isTransfer;
+    let note = document.getElementById(warningId);
+    if (isTransfer) {
+      if (!note) {
+        note = document.createElement('p');
+        note.id = warningId;
+        note.className = 'text-xs text-slate-400';
+        categorySelect.parentElement.appendChild(note);
+      }
+      note.textContent = 'Category is disabled for transfers.';
+    } else if (note) {
+      note.remove();
+    }
+  }
+
+  function validateForm(event) {
+    if (!fromSelect.value && !toSelect.value) {
+      event.preventDefault();
+      alert('Select at least one account.');
+      return false;
+    }
+    if (fromSelect.value && toSelect.value && fromSelect.value === toSelect.value) {
+      event.preventDefault();
+      alert('From and to accounts must be different.');
+      return false;
+    }
+    return true;
+  }
+
+  fromSelect.addEventListener('change', updateCategoryState);
+  toSelect.addEventListener('change', updateCategoryState);
+  updateCategoryState();
+  form.addEventListener('submit', validateForm);
+})();
+</script>
 {% endblock %}

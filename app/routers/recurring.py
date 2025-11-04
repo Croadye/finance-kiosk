@@ -1,12 +1,13 @@
 from __future__ import annotations
 from datetime import date, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..db import get_session
 from ..models import Bill, Account, Category, Transaction, TxSplit
@@ -27,10 +28,26 @@ def advance_next_due(d: date, cadence: str) -> date:
     return date(y, m+1, min(d.day, 28))
 
 
+def resolve_accounts(b: Bill) -> tuple[UUID | None, UUID | None]:
+    from_id = b.from_account_id
+    to_id = b.to_account_id
+    if not from_id and not to_id and b.account_id:
+        if (b.amount or 0) < 0:
+            from_id = b.account_id
+        else:
+            to_id = b.account_id
+    return from_id, to_id
+
+
 @router.get("/recurring", response_class=HTMLResponse)
 async def recurring_list(request: Request, session: AsyncSession = Depends(get_session)):
     rows = (await session.execute(
         select(Bill)
+        .options(
+            selectinload(Bill.from_account),
+            selectinload(Bill.to_account),
+            selectinload(Bill.account),
+        )
         .order_by(Bill.next_due.nulls_last(), Bill.name)
     )).scalars().all()
     return templates.TemplateResponse("recurring_list.html", {"request": request, "rows": rows})
@@ -41,7 +58,10 @@ async def recurring_new(request: Request, session: AsyncSession = Depends(get_se
     accounts = (await session.execute(select(Account.id, Account.name))).all()
     categories = (await session.execute(select(Category.id, Category.name))).all()
     return templates.TemplateResponse("recurring_new.html", {
-        "request": request, "accounts": accounts, "categories": categories
+        "request": request,
+        "accounts": accounts,
+        "categories": categories,
+        "err": request.query_params.get("err"),
     })
 
 
@@ -53,18 +73,30 @@ async def recurring_create(
     cadence: str = Form("monthly"),
     next_due: str = Form(...),
     autopost: bool = Form(False),
-    account_id: str = Form(...),
-    category_id: str = Form(...),
+    from_account_id: str = Form(""),
+    to_account_id: str = Form(""),
+    category_id: str = Form(""),
     payee: str = Form(""),
     memo: str = Form(""),
     session: AsyncSession = Depends(get_session),
 ):
     signed = -abs(amount) if kind == "expense" else abs(amount)
+    from_id = UUID(from_account_id) if from_account_id else None
+    to_id = UUID(to_account_id) if to_account_id else None
+    if from_id and to_id and from_id == to_id:
+        return RedirectResponse(url="/recurring/new?err=same_accounts", status_code=303)
+    if not from_id and not to_id:
+        return RedirectResponse(url="/recurring/new?err=missing_account", status_code=303)
+    cat_id = UUID(category_id) if category_id and not (
+        from_id and to_id) else None
     row = Bill(
         name=name, amount=signed, cadence=cadence,
         next_due=date.fromisoformat(next_due),
         autopost=bool(autopost),
-        account_id=UUID(account_id), category_id=UUID(category_id) if category_id else None,
+        account_id=from_id or to_id,
+        category_id=cat_id,
+        from_account_id=from_id,
+        to_account_id=to_id,
     )
     session.add(row)
     await session.commit()
@@ -84,22 +116,58 @@ async def recurring_delete(bill_id: str, session: AsyncSession = Depends(get_ses
 async def recurring_run_due(session: AsyncSession = Depends(get_session), request: Request = None):
     today = date.today()
     due = (await session.execute(
-        select(Bill).where(Bill.next_due != None, Bill.next_due <= today)
+        select(Bill)
+        .options(
+            selectinload(Bill.from_account),
+            selectinload(Bill.to_account),
+            selectinload(Bill.account),
+        )
+        .where(Bill.next_due != None, Bill.next_due <= today)
     )).scalars().all()
 
     to_confirm = []
     for b in list(due):
         if b.autopost:
             # auto post
-            tx = Transaction(
-                account_id=b.account_id, amount=b.amount,
-                payee=b.name, memo=f"Recurring ({b.cadence})", cleared=True
-            )
-            session.add(tx)
-            await session.flush()
-            if b.category_id:
-                session.add(TxSplit(transaction_id=tx.id,
-                            category_id=b.category_id, amount=b.amount))
+            from_id, to_id = resolve_accounts(b)
+            memo = f"Recurring ({b.cadence})"
+            if from_id and to_id:
+                transfer_amount = abs(b.amount or 0)
+                g = uuid4()
+                session.add_all([
+                    Transaction(
+                        account_id=from_id,
+                        amount=-abs(transfer_amount),
+                        payee=b.name,
+                        memo=memo,
+                        cleared=True,
+                        transfer_group_id=g,
+                    ),
+                    Transaction(
+                        account_id=to_id,
+                        amount=abs(transfer_amount),
+                        payee=b.name,
+                        memo=memo,
+                        cleared=True,
+                        transfer_group_id=g,
+                    ),
+                ])
+            else:
+                account_id = from_id or to_id or b.account_id
+                if not account_id:
+                    continue
+                tx = Transaction(
+                    account_id=account_id,
+                    amount=b.amount,
+                    payee=b.name,
+                    memo=memo,
+                    cleared=True,
+                )
+                session.add(tx)
+                await session.flush()
+                if b.category_id:
+                    session.add(TxSplit(transaction_id=tx.id,
+                                category_id=b.category_id, amount=b.amount))
             b.next_due = advance_next_due(b.next_due, b.cadence)
         else:
             to_confirm.append(b)
@@ -134,15 +202,45 @@ async def recurring_confirm(session: AsyncSession = Depends(get_session), reques
         # keep original sign, but allow user to flip with negative if they want
         final = amt if b.amount > 0 else -abs(amt)
 
-        tx = Transaction(
-            account_id=b.account_id, amount=final,
-            payee=b.name, memo=f"Recurring ({b.cadence})", cleared=True
-        )
-        session.add(tx)
-        await session.flush()
-        if b.category_id:
-            session.add(TxSplit(transaction_id=tx.id,
-                        category_id=b.category_id, amount=final))
+        from_id, to_id = resolve_accounts(b)
+        memo = f"Recurring ({b.cadence})"
+        if from_id and to_id:
+            transfer_amount = abs(final)
+            g = uuid4()
+            session.add_all([
+                Transaction(
+                    account_id=from_id,
+                    amount=-abs(transfer_amount),
+                    payee=b.name,
+                    memo=memo,
+                    cleared=True,
+                    transfer_group_id=g,
+                ),
+                Transaction(
+                    account_id=to_id,
+                    amount=abs(transfer_amount),
+                    payee=b.name,
+                    memo=memo,
+                    cleared=True,
+                    transfer_group_id=g,
+                ),
+            ])
+        else:
+            account_id = from_id or to_id or b.account_id
+            if not account_id:
+                continue
+            tx = Transaction(
+                account_id=account_id,
+                amount=final,
+                payee=b.name,
+                memo=memo,
+                cleared=True,
+            )
+            session.add(tx)
+            await session.flush()
+            if b.category_id:
+                session.add(TxSplit(transaction_id=tx.id,
+                            category_id=b.category_id, amount=final))
         b.next_due = advance_next_due(b.next_due, b.cadence)
 
     await session.commit()
@@ -169,6 +267,7 @@ async def recurring_edit(bill_id: str, request: Request, session: AsyncSession =
         "categories": categories,
         "kind": kind,
         "abs_amount": abs_amount,
+        "err": request.query_params.get("err"),
     })
 
 
@@ -181,7 +280,8 @@ async def recurring_update(
     cadence: str = Form("monthly"),
     next_due: str = Form(None),
     autopost: bool = Form(False),
-    account_id: str = Form(...),
+    from_account_id: str = Form(""),
+    to_account_id: str = Form(""),   
     category_id: str = Form(""),
     session: AsyncSession = Depends(get_session),
 ):
@@ -190,12 +290,22 @@ async def recurring_update(
         return RedirectResponse(url="/recurring", status_code=303)
 
     signed = -abs(amount) if kind == "expense" else abs(amount)
+    from_id = UUID(from_account_id) if from_account_id else None
+    to_id = UUID(to_account_id) if to_account_id else None
+    if from_id and to_id and from_id == to_id:
+        return RedirectResponse(url=f"/recurring/{bill_id}/edit?err=same_accounts", status_code=303)
+    if not from_id and not to_id:
+        return RedirectResponse(url=f"/recurring/{bill_id}/edit?err=missing_account", status_code=303)
+    cat_id = UUID(category_id) if category_id and not (
+        from_id and to_id) else None
     b.name = name
     b.amount = signed
     b.cadence = cadence
     b.autopost = bool(autopost)
-    b.account_id = UUID(account_id)
-    b.category_id = UUID(category_id) if category_id else None
+    b.account_id = from_id or to_id
+    b.category_id = cat_id
+    b.from_account_id = from_id
+    b.to_account_id = to_id
     if next_due:
         b.next_due = date.fromisoformat(next_due)
 

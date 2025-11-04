@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from fastapi.templating import Jinja2Templates
-from app.services.metrics import calc_dashboard_metrics
+from app.services.metrics import dashboard_totals
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -19,5 +19,8 @@ templates.env.filters['currency'] = currency
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, session: AsyncSession = Depends(get_session)):
-    data = await calc_dashboard_metrics(session)
-    return templates.TemplateResponse("dashboard.html", {"request": request, **data})
+    totals = await dashboard_totals(session)
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "totals": totals,
+    })

@@ -1,22 +1,53 @@
-{% extends "base.html" %}
-{% block content %}
-<form method="post" action="/recurring" class="max-w-xl bg-slate-900 rounded-2xl p-4 shadow space-y-3">
+{% extends "base.html" %} {% block content %}
+<form
+  id="recurring-form"
+  method="post"
+  action="/recurring"
+  class="max-w-xl bg-slate-900 rounded-2xl p-4 shadow space-y-3"
+>
   <h2 class="text-lg font-semibold">New Recurring Item</h2>
-
+  {% if err == 'same_accounts' %}
+  <div
+    class="px-3 py-2 bg-rose-900/40 border border-rose-700 rounded-xl text-sm text-rose-200"
+  >
+    From and to accounts must be different for a transfer.
+  </div>
+  {% elif err == 'missing_account' %}
+  <div
+    class="px-3 py-2 bg-rose-900/40 border border-rose-700 rounded-xl text-sm text-rose-200"
+  >
+    Select at least one account to post this item.
+  </div>
+  {% endif %}
   <div>
     <label class="block text-sm text-slate-300 mb-1">Name</label>
-    <input name="name" class="w-full bg-slate-800 rounded-xl px-3 py-2" placeholder="e.g., Mortgage" required>
+    <input
+      name="name"
+      class="w-full bg-slate-800 rounded-xl px-3 py-2"
+      placeholder="e.g., Mortgage"
+      required
+    />
   </div>
 
   <div>
     <label class="block text-sm text-slate-300 mb-1">Kind</label>
-    <label class="inline-flex items-center gap-2 mr-4"><input type="radio" name="kind" value="expense" checked> Expense</label>
-    <label class="inline-flex items-center gap-2"><input type="radio" name="kind" value="income"> Income</label>
+    <label class="inline-flex items-center gap-2 mr-4"
+      ><input type="radio" name="kind" value="expense" checked /> Expense</label
+    >
+    <label class="inline-flex items-center gap-2"
+      ><input type="radio" name="kind" value="income" /> Income</label
+    >
   </div>
 
   <div>
     <label class="block text-sm text-slate-300 mb-1">Amount</label>
-    <input name="amount" inputmode="decimal" class="w-full bg-slate-800 rounded-xl px-3 py-2" placeholder="e.g., 1850.00" required>
+    <input
+      name="amount"
+      inputmode="decimal"
+      class="w-full bg-slate-800 rounded-xl px-3 py-2"
+      placeholder="e.g., 1850.00"
+      required
+    />
   </div>
 
   <div>
@@ -30,12 +61,34 @@
 
   <div>
     <label class="block text-sm text-slate-300 mb-1">Next due date</label>
-    <input type="date" name="next_due" class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+    <input
+      type="date"
+      name="next_due"
+      class="w-full bg-slate-800 rounded-xl px-3 py-2"
+      required
+    />
   </div>
 
   <div>
-    <label class="block text-sm text-slate-300 mb-1">Account</label>
-    <select name="account_id" class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+    <label class="block text-sm text-slate-300 mb-1">From account</label>
+    <select
+      name="from_account_id"
+      class="w-full bg-slate-800 rounded-xl px-3 py-2"
+    >
+      <option value="">— none —</option>
+      {% for id, name in accounts %}
+      <option value="{{id}}">{{name}}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">To account</label>
+    <select
+      name="to_account_id"
+      class="w-full bg-slate-800 rounded-xl px-3 py-2"
+    >
+      <option value="">— none —</option>
       {% for id, name in accounts %}
       <option value="{{id}}">{{name}}</option>
       {% endfor %}
@@ -45,6 +98,8 @@
   <div>
     <label class="block text-sm text-slate-300 mb-1">Category</label>
     <select name="category_id" class="w-full bg-slate-800 rounded-xl px-3 py-2">
+      <option value="">— none —</option>
+
       {% for id, name in categories %}
       <option value="{{id}}">{{name}}</option>
       {% endfor %}
@@ -52,12 +107,73 @@
   </div>
 
   <div class="flex items-center gap-2 mt-2">
-    <input id="autopost" type="checkbox" name="autopost" value="1" class="scale-125">
-    <label for="autopost" class="text-slate-300">Autopost (uncheck to ask every time)</label>
+    <input
+      id="autopost"
+      type="checkbox"
+      name="autopost"
+      value="1"
+      class="scale-125"
+    />
+    <label for="autopost" class="text-slate-300"
+      >Autopost (uncheck to ask every time)</label
+    >
   </div>
 
   <div class="pt-3 flex justify-end">
-    <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Save</button>
+    <button
+      class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white"
+    >
+      Save
+    </button>
   </div>
 </form>
+<script>
+  (function () {
+    const form = document.getElementById("recurring-form");
+    if (!form) return;
+    const fromSelect = form.querySelector('select[name="from_account_id"]');
+    const toSelect = form.querySelector('select[name="to_account_id"]');
+    const categorySelect = form.querySelector('select[name="category_id"]');
+    const warningId = "account-warning";
+
+    function updateCategoryState() {
+      const isTransfer = fromSelect.value && toSelect.value;
+      categorySelect.disabled = isTransfer;
+      let note = document.getElementById(warningId);
+      if (isTransfer) {
+        if (!note) {
+          note = document.createElement("p");
+          note.id = warningId;
+          note.className = "text-xs text-slate-400";
+          categorySelect.parentElement.appendChild(note);
+        }
+        note.textContent = "Category is disabled for transfers.";
+      } else if (note) {
+        note.remove();
+      }
+    }
+
+    function validateForm(event) {
+      if (!fromSelect.value && !toSelect.value) {
+        event.preventDefault();
+        alert("Select at least one account.");
+        return false;
+      }
+      if (
+        fromSelect.value &&
+        toSelect.value &&
+        fromSelect.value === toSelect.value
+      ) {
+        event.preventDefault();
+        alert("From and to accounts must be different.");
+        return false;
+      }
+      return true;
+    }
+
+    fromSelect.addEventListener("change", updateCategoryState);
+    toSelect.addEventListener("change", updateCategoryState);
+    form.addEventListener("submit", validateForm);
+  })();
+</script>
 {% endblock %}
