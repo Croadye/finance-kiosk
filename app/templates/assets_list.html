@@ -11,6 +11,7 @@
       <tr>
         <th class="text-left py-2 pr-3">Name</th>
         <th class="text-left py-2 pr-3">Type</th>
+        <th class="text-left py-2 pr-3">VIN</th>
         <th class="text-right py-2 pr-3">Est. Value</th>
         <th class="text-left py-2 pr-3">Source</th>
         <th class="text-left py-2 pr-3">Updated</th>
@@ -22,6 +23,7 @@
       <tr class="border-b border-slate-800">
         <td class="py-2 pr-3 font-medium">{{ a.name }}</td>
         <td class="py-2 pr-3">{{ a.kind }}</td>
+        <td class="py-2 pr-3">{{ a.vin or "—" }}</td>
         <td class="py-2 pr-3 text-right">{{ "{:,.2f}".format(a.estimate_value or 0) }}</td>
         <td class="py-2 pr-3">{{ a.estimate_source or "—" }}</td>
         <td class="py-2 pr-3">{{ a.estimate_at or "—" }}</td>
@@ -36,7 +38,9 @@
     </tbody>
     <tfoot>
       <tr>
-        <td></td><td class="text-right py-2 pr-3 font-medium">Total</td>
+        <td></td>
+        <td class="text-right py-2 pr-3 font-medium">Total</td>
+        <td></td>
         <td class="text-right py-2 pr-3 font-semibold">{{ "{:,.2f}".format(total_assets or 0) }}</td>
         <td colspan="3"></td>
       </tr>

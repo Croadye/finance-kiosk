@@ -182,6 +182,8 @@ class Asset(Base):
     estimate_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True)
 
+    vin: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
     # flexible details (address/city/state/zip OR year/make/model/trim/mileage, etc.)
     meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 

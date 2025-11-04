@@ -14,10 +14,17 @@
         {% for t in types %}<option value="{{ t }}" {% if a.kind==t %}selected{% endif %}>{{ t|capitalize }}</option>{% endfor %}
       </select>
     </div>
-    <div>
+    <div class="md:col-span-2">
       <label class="block text-sm mb-1">Estimated Value</label>
-      <input name="est_value" value="{{ a.estimate_value or '' }}" inputmode="decimal" class="w-full bg-slate-800 rounded-xl px-3 py-2 text-right">
-    </div>
+      <div class="flex flex-col sm:flex-row gap-2 items-stretch">
+        <input id="est_value" name="est_value" value="{{ a.estimate_value or '' }}" inputmode="decimal" class="flex-1 bg-slate-800 rounded-xl px-3 py-2 text-right">
+        <input type="hidden" name="est_source" id="est_source" value="{{ a.estimate_source or '' }}">
+        <div class="flex gap-2" id="estimate_actions">
+          <button id="btn_zillow" type="button" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white" onclick="estimateFromZillow()">Use Zillow</button>
+          <button id="btn_kbb" type="button" class="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white" onclick="estimateFromKbb()">Use KBB</button>
+        </div>
+      </div>
+      <p id="estimate_status" class="text-xs text-slate-400 mt-1 min-h-[1.25rem]"></p>    </div>
   </div>
 
   {% set m = a.meta or {} %}
@@ -35,6 +42,7 @@
     <div><label class="block text-sm mb-1">Model</label><input name="model" value="{{ m.model or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
     <div><label class="block text-sm mb-1">Trim</label><input name="trim" value="{{ m.trim or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
     <div><label class="block text-sm mb-1">Mileage</label><input name="mileage" value="{{ m.mileage or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
+    <div><label class="block text-sm mb-1">VIN</label><input name="vin" value="{{ a.vin or m.vin or '' }}" maxlength="17" class="w-full bg-slate-800 rounded-xl px-3 py-2 uppercase"></div>
     <div><label class="block text-sm mb-1">ZIP</label><input name="zip" value="{{ m.zip or '' }}" class="w-full bg-slate-800 rounded-xl px-3 py-2"></div>
   </div>
 
@@ -53,14 +61,98 @@
 <script>
 function swapDetails(){
   const kind = document.querySelector('select[name="kind"]').value;
-  const K = kind;
-  const show = id => document.getElementById(id).classList.remove('hidden');
-  const hide = id => document.getElementById(id).classList.add('hidden');
-  hide('details_home'); hide('details_vehicle'); hide('details_electronics');
-  if(K==='home') show('details_home');
-  if(K==='vehicle'||K==='trailer') show('details_vehicle');
-  if(K==='electronics') show('details_electronics');
+  document.getElementById('details_home').classList.add('hidden');
+  document.getElementById('details_vehicle').classList.add('hidden');
+  document.getElementById('details_electronics').classList.add('hidden');
+  document.getElementById('btn_zillow').classList.add('hidden');
+  document.getElementById('btn_kbb').classList.add('hidden');
+  if(kind === 'home'){
+    document.getElementById('details_home').classList.remove('hidden');
+    document.getElementById('btn_zillow').classList.remove('hidden');
+  }
+  if(kind === 'vehicle' || kind === 'trailer'){
+    document.getElementById('details_vehicle').classList.remove('hidden');
+    document.getElementById('btn_kbb').classList.remove('hidden');
+  }
+  if(kind === 'electronics'){
+    document.getElementById('details_electronics').classList.remove('hidden');
+  }
 }
 swapDetails();
+
+function setEstimateStatus(message, isError=false){
+  const status = document.getElementById('estimate_status');
+  status.textContent = message || '';
+  status.classList.toggle('text-rose-400', Boolean(isError));
+  status.classList.toggle('text-slate-400', !isError);
+}
+
+async function estimateFromZillow(){
+  const address = document.querySelector('#details_home input[name="address"]').value;
+  const city = document.querySelector('#details_home input[name="city"]').value;
+  const state = document.querySelector('#details_home input[name="state"]').value;
+  const zip = document.querySelector('#details_home input[name="zip"]').value;
+  if(!address || !zip){
+    setEstimateStatus('Provide an address and ZIP before fetching Zillow values.', true);
+    return;
+  }
+  setEstimateStatus('Contacting Zillow estimator…');
+  try{
+    const resp = await fetch('/assets/estimates/zillow', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({address, city, state, zip})
+    });
+    if(!resp.ok){
+      const data = await resp.json().catch(()=>({detail:'Unable to retrieve estimate'}));
+      throw new Error(data.detail || 'Unable to retrieve estimate');
+    }
+    const data = await resp.json();
+    document.getElementById('est_value').value = data.value;
+    document.getElementById('est_source').value = 'zillow';
+    setEstimateStatus('Zillow estimate applied.');
+  }catch(err){
+    setEstimateStatus(err.message, true);
+  }
+}
+
+async function estimateFromKbb(){
+  const scope = document.getElementById('details_vehicle');
+  const payload = {
+    year: scope.querySelector('input[name="year"]').value,
+    make: scope.querySelector('input[name="make"]').value,
+    model: scope.querySelector('input[name="model"]').value,
+    trim: scope.querySelector('input[name="trim"]').value,
+    mileage: scope.querySelector('input[name="mileage"]').value,
+    zip: scope.querySelector('input[name="zip"]').value,
+    vin: scope.querySelector('input[name="vin"]').value,
+  };
+  if(!payload.year || !payload.make || !payload.model){
+    setEstimateStatus('Year, make, and model are required for a KBB estimate.', true);
+    return;
+  }
+  setEstimateStatus('Contacting KBB estimator…');
+  try{
+    const resp = await fetch('/assets/estimates/kbb', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(!resp.ok){
+      const data = await resp.json().catch(()=>({detail:'Unable to retrieve estimate'}));
+      throw new Error(data.detail || 'Unable to retrieve estimate');
+    }
+    const data = await resp.json();
+    document.getElementById('est_value').value = data.value;
+    document.getElementById('est_source').value = 'kbb';
+    setEstimateStatus('KBB estimate applied.');
+  }catch(err){
+    setEstimateStatus(err.message, true);
+  }
+}
+
+document.getElementById('est_value').addEventListener('input', () => {
+  document.getElementById('est_source').value = 'manual';
+});
 </script>
 {% endblock %}
