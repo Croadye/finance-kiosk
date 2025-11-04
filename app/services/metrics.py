@@ -44,8 +44,8 @@ def _account_running_balance_expr(account_tbl: Account, tx_sum_alias):
     return (account_tbl.opening_balance + func.coalesce(tx_sum_alias.c.sum_amt, 0))
 
 
-async def _tx_sum_by_account(session):
-    sub = (
+def _tx_sum_by_account():
+    return (
         select(
             Transaction.account_id.label("account_id"),
             func.coalesce(func.sum(Transaction.amount), 0).label("sum_amt"),
@@ -53,7 +53,6 @@ async def _tx_sum_by_account(session):
         .group_by(Transaction.account_id)
         .subquery()
     )
-    return sub
 
 
 async def accounts_net_total(session):
@@ -61,7 +60,7 @@ async def accounts_net_total(session):
     Sum all account balances, flipping the sign for debt accounts so that
     debts reduce the total and cash increases it.
     """
-    tx_sum = await _tx_sum_by_account(session)
+    tx_sum =  _tx_sum_by_account()
 
     bal_expr = _account_running_balance_expr(Account, tx_sum)
     signed = case(
@@ -79,7 +78,7 @@ async def accounts_net_total(session):
 
 
 async def accounts_cash_total(session):
-    tx_sum = await _tx_sum_by_account(session)
+    tx_sum = _tx_sum_by_account()
     bal_expr = _account_running_balance_expr(Account, tx_sum)
     q = (
         select(func.coalesce(func.sum(bal_expr), 0.0))
@@ -92,10 +91,10 @@ async def accounts_cash_total(session):
 
 async def accounts_debt_total(session):
     """Sum of debt balances as positive numbers (what’s owed)."""
-    tx_sum = await _tx_sum_by_account(session)
+    tx_sum = _tx_sum_by_account()
     bal_expr = _account_running_balance_expr(Account, tx_sum)
     q = (
-        select(func.coalesce(func.sum(-func.least(bal_expr, 0)), 0.0))
+        select(func.coalesce(func.sum(func.greatest(bal_expr, 0)), 0.0))
         .select_from(Account)
         .join(tx_sum, tx_sum.c.account_id == Account.id, isouter=True)
         .where(and_(Account.is_archived.is_(False), Account.is_debt.is_(True)))
