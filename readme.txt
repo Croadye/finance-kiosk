@@ -1,0 +1,1 @@
+uvicorn app.main:app --host 10.29.1.5 --port 8000
