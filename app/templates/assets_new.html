@@ -17,15 +17,12 @@
 
     <div class="md:col-span-2">
       <label class="block text-sm text-slate-300 mb-1">Estimated Value</label>
-<div class="flex flex-col sm:flex-row gap-2 items-stretch">
+      <div class="flex flex-col sm:flex-row gap-2 items-stretch">
         <input id="est_value" name="est_value" inputmode="decimal" class="flex-1 bg-slate-800 rounded-xl px-3 py-2 text-right" placeholder="0.00">
-        <input type="hidden" name="est_source" id="est_source" value="">
-        <div class="flex gap-2" id="estimate_actions">
-          <button id="btn_zillow" type="button" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white" onclick="estimateFromZillow()">Use Zillow</button>
-          <button id="btn_kbb" type="button" class="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white" onclick="estimateFromKbb()">Use KBB</button>
-        </div>
+        <input type="hidden" name="est_source" id="est_source" value="manual">
       </div>
-      <p id="estimate_status" class="text-xs text-slate-400 mt-1 min-h-[1.25rem]"></p>    </div>
+      <p class="text-xs text-slate-400 mt-1">Enter the latest value manually for now.</p>
+    </div>
   </div>
 
   <div id="details_home" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -60,95 +57,11 @@
 <script>
 function swapDetails(){
   const kind = document.querySelector('select[name="kind"]').value;
-  document.getElementById('details_home').classList.add('hidden');
-  document.getElementById('details_vehicle').classList.add('hidden');
-  document.getElementById('details_electronics').classList.add('hidden');
-  document.getElementById('btn_zillow').classList.add('hidden');
-  document.getElementById('btn_kbb').classList.add('hidden');
-  if(kind === 'home'){
-    document.getElementById('details_home').classList.remove('hidden');
-    document.getElementById('btn_zillow').classList.remove('hidden');
-  }
-  if(kind === 'vehicle' || kind === 'trailer'){
-    document.getElementById('details_vehicle').classList.remove('hidden');
-    document.getElementById('btn_kbb').classList.remove('hidden');
-  }
-  if(kind === 'electronics'){
-    document.getElementById('details_electronics').classList.remove('hidden');
-  }
+  document.getElementById('details_home').classList.toggle('hidden', kind !== 'home');
+  document.getElementById('details_vehicle').classList.toggle('hidden', !(kind === 'vehicle' || kind === 'trailer'));
+  document.getElementById('details_electronics').classList.toggle('hidden', kind !== 'electronics');
 }
 swapDetails();
-
-function setEstimateStatus(message, isError=false){
-  const status = document.getElementById('estimate_status');
-  status.textContent = message || '';
-  status.classList.toggle('text-rose-400', Boolean(isError));
-  status.classList.toggle('text-slate-400', !isError);
-}
-
-async function estimateFromZillow(){
-  const address = document.querySelector('#details_home input[name="address"]').value;
-  const city = document.querySelector('#details_home input[name="city"]').value;
-  const state = document.querySelector('#details_home input[name="state"]').value;
-  const zip = document.querySelector('#details_home input[name="zip"]').value;
-  if(!address || !zip){
-    setEstimateStatus('Provide an address and ZIP before fetching Zillow values.', true);
-    return;
-  }
-  setEstimateStatus('Contacting Zillow estimator…');
-  try{
-    const resp = await fetch('/assets/estimates/zillow', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({address, city, state, zip})
-    });
-    if(!resp.ok){
-      const data = await resp.json().catch(()=>({detail:'Unable to retrieve estimate'}));
-      throw new Error(data.detail || 'Unable to retrieve estimate');
-    }
-    const data = await resp.json();
-    document.getElementById('est_value').value = data.value;
-    document.getElementById('est_source').value = 'zillow';
-    setEstimateStatus('Zillow estimate applied.');
-  }catch(err){
-    setEstimateStatus(err.message, true);
-  }
-}
-
-async function estimateFromKbb(){
-  const scope = document.getElementById('details_vehicle');
-  const payload = {
-    year: scope.querySelector('input[name="year"]').value,
-    make: scope.querySelector('input[name="make"]').value,
-    model: scope.querySelector('input[name="model"]').value,
-    trim: scope.querySelector('input[name="trim"]').value,
-    mileage: scope.querySelector('input[name="mileage"]').value,
-    zip: scope.querySelector('input[name="zip"]').value,
-    vin: scope.querySelector('input[name="vin"]').value,
-  };
-  if(!payload.year || !payload.make || !payload.model){
-    setEstimateStatus('Year, make, and model are required for a KBB estimate.', true);
-    return;
-  }
-  setEstimateStatus('Contacting KBB estimator…');
-  try{
-    const resp = await fetch('/assets/estimates/kbb', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
-    });
-    if(!resp.ok){
-      const data = await resp.json().catch(()=>({detail:'Unable to retrieve estimate'}));
-      throw new Error(data.detail || 'Unable to retrieve estimate');
-    }
-    const data = await resp.json();
-    document.getElementById('est_value').value = data.value;
-    document.getElementById('est_source').value = 'kbb';
-    setEstimateStatus('KBB estimate applied.');
-  }catch(err){
-    setEstimateStatus(err.message, true);
-  }
-}
 
 document.getElementById('est_value').addEventListener('input', () => {
   document.getElementById('est_source').value = 'manual';
