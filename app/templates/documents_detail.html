@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="/documents" class="inline-flex items-center gap-2 text-sm text-indigo-300 hover:text-indigo-200 mb-3">← Back to documents</a>
+
+<div class="bg-slate-900 rounded-2xl p-4 shadow mb-4">
+  <div class="flex flex-wrap gap-6 text-sm">
+    <div>
+      <div class="text-xs uppercase text-slate-500">Account</div>
+      <div class="font-semibold">{{ account.name if account else doc.account_id }}</div>
+    </div>
+    <div>
+      <div class="text-xs uppercase text-slate-500">Source</div>
+      <div class="capitalize">{{ doc.source }}</div>
+    </div>
+    <div>
+      <div class="text-xs uppercase text-slate-500">Uploaded</div>
+      <div>{{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</div>
+    </div>
+    <div>
+      <div class="text-xs uppercase text-slate-500">Status</div>
+      <div class="font-medium capitalize">{{ doc.status }}</div>
+    </div>
+    <div>
+      <div class="text-xs uppercase text-slate-500">Total</div>
+      <div>{{ doc.total_transactions }} transactions</div>
+    </div>
+    <div>
+      <div class="text-xs uppercase text-slate-500">Duplicates</div>
+      <div class="text-amber-300">{{ doc.duplicates }}</div>
+    </div>
+    <div>
+      <div class="text-xs uppercase text-slate-500">Attachment</div>
+      <div class="truncate max-w-xs text-slate-300">{{ (doc.meta.filename if doc.meta else '') or 'n/a' }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="overflow-x-auto rounded-2xl shadow bg-slate-900">
+  <table class="min-w-full text-sm">
+    <thead class="text-slate-400 bg-slate-900/60">
+      <tr>
+        <th class="py-2 px-3 text-left">Date</th>
+        <th class="py-2 px-3 text-left">Payee</th>
+        <th class="py-2 px-3 text-left">Memo</th>
+        <th class="py-2 px-3 text-right">Amount</th>
+        <th class="py-2 px-3 text-left">Category</th>
+        <th class="py-2 px-3 text-left">Rule</th>
+        <th class="py-2 px-3 text-left">Bill match</th>
+        <th class="py-2 px-3 text-center">Duplicate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="border-t border-slate-800 {% if row.duplicate %}bg-amber-900/20{% endif %}">
+        <td class="py-2 px-3">{{ row.date }}</td>
+        <td class="py-2 px-3">{{ row.payee or '—' }}</td>
+        <td class="py-2 px-3">{{ row.memo or '—' }}</td>
+        <td class="py-2 px-3 text-right {% if row.amount|float < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">${{ '%0.2f'|format(row.amount|float) }}</td>
+        <td class="py-2 px-3">{{ row.category_name or '—' }}</td>
+        <td class="py-2 px-3">{% if row.rule_id %}Matched rule {{ row.rule_id[:8] }}{% else %}—{% endif %}</td>
+        <td class="py-2 px-3">{{ row.matched_bill_name or '—' }}</td>
+        <td class="py-2 px-3 text-center">{% if row.duplicate %}<span class="px-2 py-1 rounded-lg bg-amber-700/60 text-amber-100 text-xs">Dup</span>{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+      {% if rows|length == 0 %}
+      <tr><td colspan="8" class="py-4 text-center text-slate-500">No parsed rows.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+{% if doc.status in ['pending', 'error'] %}
+<div class="flex items-center gap-3 mt-4">
+  <form method="post" action="/documents/{{ doc.id }}/approve">
+    <button class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white">Approve &amp; import</button>
+  </form>
+  <form method="post" action="/documents/{{ doc.id }}/reject" onsubmit="return confirm('Discard this document?');">
+    <button class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white">Reject</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

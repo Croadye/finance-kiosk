@@ -35,6 +35,22 @@
     >
     <label for="debt" class="text-slate-300">Is debt?</label>
   </div>
+  <div>
+    <label class="block text-sm text-slate-300 mb-1">Dropbox Folder</label>
+    <input name="dropbox_folder" value="{{ acc.dropbox_folder or '' }}" placeholder="/Statements/Checking"
+           class="w-full bg-slate-800 rounded-xl px-3 py-2">
+    <p class="text-xs text-slate-400 mt-1">Leave blank to disable Dropbox imports for this account.</p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-400">
+    <div>
+      <span class="block text-xs uppercase tracking-wide text-slate-500">Import status</span>
+      <span class="font-medium capitalize">{{ acc.import_status or 'idle' }}</span>
+    </div>
+    <div>
+      <span class="block text-xs uppercase tracking-wide text-slate-500">Last import</span>
+      <span>{{ acc.last_imported_at.strftime('%Y-%m-%d %H:%M') if acc.last_imported_at else '—' }}</span>
+    </div>
+  </div>
   <div class="pt-2 flex justify-end">
     <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Save</button>
   </div>

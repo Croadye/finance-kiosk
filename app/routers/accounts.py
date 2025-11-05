@@ -9,7 +9,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
-from ..models import Account, Transaction
+from ..models import Account, Transaction, StatementDocument
 from ..utils import DEFAULT_ACCOUNT_TYPES, get_account_types
 
 router = APIRouter()
@@ -33,6 +33,9 @@ async def accounts_list(request: Request, session: AsyncSession = Depends(get_se
                 Account.opening_balance,
                 Account.is_archived,
                 Account.is_debt,
+                Account.import_status,
+                Account.dropbox_folder,
+                Account.last_imported_at,
             )
         )
     ).all()
@@ -41,10 +44,27 @@ async def accounts_list(request: Request, session: AsyncSession = Depends(get_se
             func.sum(Transaction.amount), 0)).group_by(Transaction.account_id)
     )).all()
     txsum = {r[0]: Decimal(r[1] or 0) for r in tx_rows}
-
+    pending_docs = (
+        await session.execute(
+            select(StatementDocument.account_id, func.count())
+            .where(StatementDocument.status == "pending")
+            .group_by(StatementDocument.account_id)
+        )
+    ).all()
+    pending_map = {row[0]: row[1] for row in pending_docs}
+    
     rows = []
-    for id, name, typ, opening_balance, is_archived, is_debt in accs:
-
+    for (
+        id,
+        name,
+        typ,
+        opening_balance,
+        is_archived,
+        is_debt,
+        import_status,
+        dropbox_folder,
+        last_imported_at,
+    ) in accs:
         bal = Decimal(opening_balance or 0) + txsum.get(id, Decimal(0))
         rows.append({
             "id": id,
@@ -53,6 +73,10 @@ async def accounts_list(request: Request, session: AsyncSession = Depends(get_se
             "balance": float(bal),
             "arch": is_archived,
             "is_debt": is_debt,
+            "import_status": import_status,
+            "dropbox_folder": dropbox_folder,
+            "last_imported_at": last_imported_at,
+            "pending_docs": pending_map.get(id, 0),
         })
         
     return templates.TemplateResponse("accounts_list.html", {"request": request, "rows": rows})
@@ -109,6 +133,7 @@ async def accounts_update(
     opening_balance: float = Form(...),
     is_archived: str | None = Form(None),
     is_debt: str | None = Form(None),
+    dropbox_folder: str | None = Form(None),
     session: AsyncSession = Depends(get_session),
 ):
     a = await session.get(Account, UUID(acc_id))
@@ -127,5 +152,16 @@ async def accounts_update(
         False,
     )
     a.is_debt = _normalize_is_debt(is_debt, default_is_debt)
+    
+    folder_value = (dropbox_folder or "").strip() or None
+    if a.dropbox_folder != folder_value:
+        a.dropbox_folder = folder_value
+        if folder_value is None:
+            a.dropbox_cursor = None
+            a.import_status = "idle"
+            a.last_imported_at = None
+        else:
+            a.dropbox_cursor = None
+    
     await session.commit()
     return RedirectResponse(url="/accounts", status_code=303)

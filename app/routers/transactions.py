@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.templating import Jinja2Templates
 
 from ..db import get_session
-from ..models import Account, Category, Transaction, TxSplit
+from ..models import Account, Category, Transaction, TxSplit, Attachment, Category, StatementDocument
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -77,25 +77,43 @@ async def list_txs(
     # Load display rows + a sample category (min over names)
     rows = (await session.execute(
         select(
-            Transaction.id, Transaction.ts, Transaction.amount,
-            Transaction.payee, Transaction.memo,
+            Transaction.id,
+            Transaction.ts,
+            Transaction.amount,
+            Transaction.payee,
+            Transaction.memo,
             Account.name.label("account_name"),
-            func.min(Category.name).label("category_name")
+            func.min(Category.name).label("category_name"),
+            func.count(Attachment.id).label("attachment_count"),
         )
         .join(Account, Account.id == Transaction.account_id)
         .outerjoin(TxSplit, TxSplit.transaction_id == Transaction.id)
         .outerjoin(Category, Category.id == TxSplit.category_id)
+        .outerjoin(Attachment, Attachment.transaction_id == Transaction.id)
         .where(Transaction.id.in_(page_ids))
         .group_by(Transaction.id, Account.name)
         .order_by(Transaction.ts.desc())
     )).all()
 
-    return templates.TemplateResponse("transactions_list.html", {
-        "request": request,
-        "rows": rows,
-        "q": q or "",
-        "page": page, "per": per, "total": total
-    })
+    pending_documents = await session.scalar(
+        select(func.count()).select_from(StatementDocument).where(
+            StatementDocument.status == "pending"
+        )
+    )
+
+    return templates.TemplateResponse(
+        "transactions_list.html",
+        {
+            "request": request,
+            "rows": rows,
+            "q": q or "",
+            "page": page,
+            "per": per,
+            "total": total,
+            "pending_documents": int(pending_documents or 0),
+        },
+    )
+
 
 
 @router.get("/transactions/new", response_class=HTMLResponse)

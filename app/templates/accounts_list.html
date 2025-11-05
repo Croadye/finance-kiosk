@@ -1,8 +1,11 @@
-{% extends "base.html" %}
-{% block content %}
+{% extends "base.html" %} {% block content %}
 <div class="flex items-center justify-between mb-3">
   <h2 class="text-xl font-semibold">Accounts</h2>
-  <a href="/accounts/new" class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">+ New</a>
+  <a
+    href="/accounts/new"
+    class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white"
+    >+ New</a
+  >
 </div>
 
 <div class="overflow-x-auto">
@@ -12,23 +15,52 @@
         <th class="py-2 pr-4">Name</th>
         <th class="py-2 pr-4">Type</th>
         <th class="py-2 pr-4 text-right">Balance</th>
+        <th class="py-2 pr-4">Imports</th>
+        <th class="py-2 pr-4">Dropbox Folder</th>
         <th class="py-2 pr-2"></th>
       </tr>
     </thead>
     <tbody>
       {% for r in rows %}
-      <tr class="border-b border-slate-800 {% if r.arch %}opacity-60{% endif %}">
+      <tr
+        class="border-b border-slate-800 {% if r.arch %}opacity-60{% endif %}"
+      >
         <td class="py-2 pr-4">{{ r.name }}</td>
         <td class="py-2 pr-4">{{ r.type }}</td>
-        <td class="py-2 pr-4 text-right {% if r.is_debt %}text-red-400{% else %}text-emerald-400{% endif %}">
+        <td
+          class="py-2 pr-4 text-right {% if r.is_debt %}text-red-400{% else %}text-emerald-400{% endif %}"
+        >
           ${{ "{:,.2f}".format(r.balance|float) }}
-        </td>        <td class="py-2 pr-2 text-right">
-          <a href="/accounts/{{ r.id }}/edit" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg">Edit</a>
+        </td>
+        <td class="py-2 pr-4">
+          <div class="text-sm">
+            <div class="font-medium capitalize">
+              {{ r.import_status or 'idle' }}
+            </div>
+            {% if r.pending_docs %}
+            <div class="text-xs text-amber-300">
+              {{ r.pending_docs }} pending
+            </div>
+            {% endif %} {% if r.last_imported_at %}
+            <div class="text-xs text-slate-400">
+              Last: {{ r.last_imported_at.strftime('%Y-%m-%d') }}
+            </div>
+            {% endif %}
+          </div>
+        </td>
+        <td class="py-2 pr-4 text-sm text-slate-300">
+          {{ r.dropbox_folder or '—' }}
+        </td>
+        <td class="py-2 pr-2 text-right">
+          <a
+            href="/accounts/{{ r.id }}/edit"
+            class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg"
+            >Edit</a
+          >
         </td>
       </tr>
-      {% endfor %}
-      {% if rows|length == 0 %}
-      <tr><td colspan="4" class="py-6 text-center text-slate-400">No accounts yet.</td></tr>
+      {% endfor %} {% if rows|length == 0 %}
+      <tr><td colspan="6" class="py-6 text-center text-slate-400">No accounts yet.</td></tr>
       {% endif %}
     </tbody>
   </table>

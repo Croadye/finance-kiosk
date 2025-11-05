@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+  <h2 class="text-xl font-semibold">Statement Documents</h2>
+  <a href="/documents" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700">Refresh</a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <form method="post" action="/documents/upload" enctype="multipart/form-data"
+        class="bg-slate-900 rounded-2xl p-4 space-y-3 shadow">
+    <h3 class="font-semibold text-lg">Manual upload</h3>
+    {% if error %}
+    <div class="p-2 rounded-lg bg-rose-900/60 text-rose-200 text-sm">{{ error }}</div>
+    {% endif %}
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Account</label>
+      <select name="account_id" class="w-full bg-slate-800 rounded-xl px-3 py-2" required>
+        {% for acc in accounts %}
+        <option value="{{ acc[0] }}">{{ acc[1] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Statement file</label>
+      <input type="file" name="file" accept=".csv,.txt,.ofx,.qfx" required
+             class="w-full bg-slate-800 rounded-xl px-3 py-2" />
+    </div>
+    <label class="inline-flex items-center gap-2 text-sm text-slate-300">
+      <input type="checkbox" name="auto_approve" value="1" class="scale-125">
+      Auto-approve when parsing succeeds
+    </label>
+    <div class="flex justify-end pt-2">
+      <button class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white">Upload</button>
+    </div>
+    <p class="text-xs text-slate-500">Supported CSV format columns: date, payee/description, amount, memo.</p>
+  </form>
+
+  <div class="bg-slate-900 rounded-2xl p-4 shadow space-y-2">
+    <h3 class="font-semibold text-lg">Dropbox status</h3>
+    {% if accounts|length == 0 %}
+    <p class="text-sm text-slate-400">Create an account to enable Dropbox syncing.</p>
+    {% else %}
+    <ul class="text-sm space-y-1">
+      {% for acc in accounts %}
+      {% set acc_status = acc[2] %}
+      {% for doc in pending if doc.account_id == acc[0] %}
+      {% set acc_status = doc.status %}
+      {% endfor %}
+      <li class="flex items-center justify-between">
+        <span class="font-medium">{{ acc[1] }}</span>
+        <span class="text-xs uppercase tracking-wide text-slate-400">{{ acc_status or 'idle' }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</div>
+
+<h3 class="text-lg font-semibold mb-2">Pending review</h3>
+<div class="bg-slate-900 rounded-2xl shadow overflow-hidden mb-6">
+  <table class="min-w-full text-sm">
+    <thead class="text-slate-400 bg-slate-900/60">
+      <tr>
+        <th class="py-2 px-3 text-left">Uploaded</th>
+        <th class="py-2 px-3 text-left">Account</th>
+        <th class="py-2 px-3 text-left">Source</th>
+        <th class="py-2 px-3 text-right">Transactions</th>
+        <th class="py-2 px-3 text-right">Duplicates</th>
+        <th class="py-2 px-3"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for doc in pending %}
+      <tr class="border-t border-slate-800">
+        <td class="py-2 px-3">{{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td class="py-2 px-3">{{ account_map.get(doc.account_id) or doc.account_id }}</td>
+        <td class="py-2 px-3 capitalize">{{ doc.source }}</td>
+        <td class="py-2 px-3 text-right">{{ doc.total_transactions }}</td>
+        <td class="py-2 px-3 text-right text-amber-300">{{ doc.duplicates }}</td>
+        <td class="py-2 px-3 text-right">
+          <a href="/documents/{{ doc.id }}" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700">Review</a>
+        </td>
+      </tr>
+      {% endfor %}
+      {% if pending|length == 0 %}
+      <tr><td colspan="6" class="py-4 text-center text-slate-500">All caught up!</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<h3 class="text-lg font-semibold mb-2">History</h3>
+<div class="bg-slate-900 rounded-2xl shadow overflow-hidden">
+  <table class="min-w-full text-sm">
+    <thead class="text-slate-400 bg-slate-900/60">
+      <tr>
+        <th class="py-2 px-3 text-left">Uploaded</th>
+        <th class="py-2 px-3 text-left">Account</th>
+        <th class="py-2 px-3 text-left">Status</th>
+        <th class="py-2 px-3 text-right">Transactions</th>
+        <th class="py-2 px-3 text-right">Duplicates</th>
+        <th class="py-2 px-3 text-left">Approved</th>
+        <th class="py-2 px-3"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for doc in history %}
+      <tr class="border-t border-slate-800">
+        <td class="py-2 px-3">{{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td class="py-2 px-3">{{ account_map.get(doc.account_id) or doc.account_id }}</td>
+        <td class="py-2 px-3 capitalize">{{ doc.status }}</td>
+        <td class="py-2 px-3 text-right">{{ doc.total_transactions }}</td>
+        <td class="py-2 px-3 text-right">{{ doc.duplicates }}</td>
+        <td class="py-2 px-3">{{ doc.approved_at.strftime('%Y-%m-%d %H:%M') if doc.approved_at else '—' }}</td>
+        <td class="py-2 px-3 text-right">
+          <a href="/documents/{{ doc.id }}" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700">View</a>
+        </td>
+      </tr>
+      {% endfor %}
+      {% if history|length == 0 %}
+      <tr><td colspan="7" class="py-4 text-center text-slate-500">No documents processed yet.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

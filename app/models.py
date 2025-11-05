@@ -1,6 +1,6 @@
 from typing import Any
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from sqlalchemy import (
     DateTime,
     ForeignKey,
@@ -39,8 +39,19 @@ class Account(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now())
 
+    dropbox_folder: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dropbox_cursor: Mapped[str | None] = mapped_column(Text, nullable=True)
+    import_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="idle", server_default="idle")
+    last_imported_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True)
+    last_webhook_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True)
+    
     transactions = relationship("Transaction", back_populates="account")
-
+    documents = relationship(
+        "StatementDocument", back_populates="account", cascade="all, delete-orphan"
+    )
 
 class Category(Base):
     __tablename__ = "categories"
@@ -165,6 +176,46 @@ class Attachment(Base):
     path: Mapped[str] = mapped_column(Text, nullable=False)
     mime: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
+
+class StatementDocument(Base):
+    __tablename__ = "statement_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=False, index=True
+    )
+    source: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_path: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
+    uploaded_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    total_transactions: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    duplicates: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    dropbox_rev: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    parsed_transactions: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default="[]"
+    )
+
+    account = relationship("Account", back_populates="documents")
+
+    def mark_processed(self) -> None:
+        self.processed_at = datetime.now(timezone.utc)
 
 class Asset(Base):
     __tablename__ = "assets"
