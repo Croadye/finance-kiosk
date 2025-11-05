@@ -1,9 +1,9 @@
 from __future__ import annotations
-from datetime import datetime, date
-from decimal import Decimal
+from datetime import datetime, date, timezone
+from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, Form
+from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
@@ -110,22 +110,36 @@ async def assets_create(
     meta = {k: v for k, v in meta.items() if str(v).strip()}
     meta.pop("vin", None)
 
-    value: Decimal | None = None
-    if est_value.strip():
-        value = Decimal(str(est_value).replace(",", "").strip())
+    raw_value = est_value.strip()
+    raw_source = est_source.strip().lower()
 
-    source = est_source.strip().lower()
-    if value is None:
-        source = None
-    elif not source:
-        source = "manual"
+    value: Decimal | None = None
+    if raw_value:
+        try:
+            value = Decimal(str(raw_value).replace(",", ""))
+        except InvalidOperation as exc:
+            raise HTTPException(status_code=422,
+                                detail="Invalid estimated value") from exc
+
+    source = raw_source or None
+    if value is not None:
+        source = source or "manual"
+
+    if source and value is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Tracked assets require an estimated value.",
+        )
+
+    estimate_at = datetime.now(timezone.utc) if value is not None else None
+
 
     a = Asset(
         name=name.strip(),
         kind=kind.strip().lower(),
         estimate_value=value,
         estimate_source=source,
-        estimate_at=datetime.utcnow() if value is not None else None,
+        estimate_at=estimate_at,
         meta=meta or None,
         vin=vin.strip() or None,
         is_archived=False,
@@ -197,11 +211,31 @@ async def assets_update(
     a.kind = kind.strip().lower()
     a.meta = meta or None
     a.vin = vin.strip() or None
-    if est_value.strip():
-        a.estimate_value = Decimal(str(est_value).replace(",", "").strip())
-        source = est_source.strip().lower() or "manual"
+    raw_value = est_value.strip()
+    raw_source = est_source.strip().lower()
+
+    new_value: Decimal | None = None
+    if raw_value:
+        try:
+            new_value = Decimal(str(raw_value).replace(",", ""))
+        except InvalidOperation as exc:
+            raise HTTPException(status_code=422,
+                                detail="Invalid estimated value") from exc
+
+    if new_value is not None:
+        source = raw_source or "manual"
+        a.estimate_value = new_value
         a.estimate_source = source
-        a.estimate_at = datetime.utcnow()
+        a.estimate_at = datetime.now(timezone.utc)
+    elif raw_source:
+        a.estimate_source = raw_source
+
+    final_source = a.estimate_source
+    if final_source and a.estimate_value is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Tracked assets require an estimated value.",
+        )
     await session.commit()
     return RedirectResponse(url="/assets?notice=updated", status_code=303)
 
