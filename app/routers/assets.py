@@ -204,3 +204,12 @@ async def assets_update(
         a.estimate_at = datetime.utcnow()
     await session.commit()
     return RedirectResponse(url="/assets?notice=updated", status_code=303)
+
+
+@router.post("/assets/{asset_id}/archive")
+async def assets_archive(asset_id: str, session: AsyncSession = Depends(get_session)):
+    a = await session.get(Asset, UUID(asset_id))
+    if a:
+        a.is_archived = True
+        await session.commit()
+    return RedirectResponse(url="/assets?notice=archived", status_code=303)
